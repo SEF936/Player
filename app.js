@@ -946,8 +946,5 @@ function bindImport(){
   setTopDate();
   bindImport();
 
-  // Optionnel: active TMDB en collant ton token ici
- // Metadata.init({ token: "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0N2Y5YTIzZjE3OWEyYzZlNTEzYWMxZWIzNWNkNzM3ZiIsIm5iZiI6MTc3MDIxODIwMy44MTcsInN1YiI6IjY5ODM2MmRiYzBmNTIxOTI3NDMyZTk3NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.cJGRkCLJo1vgsB2I027SFCJ91kYY4CmCsYUoePKdmmQ", language: "fr-FR" });
-
   showView("import");
 })();
