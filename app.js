@@ -1,51 +1,113 @@
-/* M3U Player - Single Tab SPA */
+/* app.js - base fonctionnelle "ancienne"
+   - Import m3u/m3u8
+   - Dashboard TV/FILMS/SERIES
+   - Category view: subcats + search + lazy load 30 (ordre playlist)
+   - SERIES: regroupement show/saisons/épisodes (1 card show)
+   - Series detail: saisons + épisodes + infos TMDB si dispo
+   - Film detail: infos TMDB si dispo + boutons download/vlc
+   - Modal actions: TV + épisodes
+*/
+function setText(el, value){
+  if (!el) return false;
+  el.textContent = value ?? "";
+  return true;
+}
+function setHTML(el, value){
+  if (!el) return false;
+  el.innerHTML = value ?? "";
+  return true;
+}
+function setBg(el, url){
+  if (!el) return false;
+  el.style.backgroundImage = url ? `url("${url}")` : "";
+  return true;
+}
+function setSrc(el, url){
+  if (!el) return false;
+  if (url) el.src = url;
+  else el.removeAttribute("src");
+  return true;
+}
+function requireEl(el, id){
+  if (!el) console.warn(`⚠️ Missing element in HTML: #${id}`);
+  return el;
+}
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-/* Views */
+
+const $ = (s) => document.querySelector(s);
+const BATCH = 30;
+
+// Views
 const viewImport = $("#viewImport");
-const viewDashboard = $("#viewDashboard");
+const viewDash = $("#viewDash");
 const viewCategory = $("#viewCategory");
+const viewSeriesDetail = $("#viewSeriesDetail");
+const viewFilmDetail = $("#viewFilmDetail");
 
-/* Header */
+// Import UI
+const dropzone = $("#dropzone");
+const fileInput = $("#fileInput");
+const statusLine = $("#statusLine");
+const resetBtn = $("#resetBtn");
+
+// Appbar
 const topDate = $("#topDate");
 
-/* Import UI */
-const dropZone = $("#dropZone");
-const m3uFileInput = $("#m3uFileInput");
-const dzMeta = $("#dzMeta");
-const importStatus = $("#importStatus");
-const clearBtn = $("#clearBtn");
+// Dash UI
+const tvCard = $("#tvCard");
+const filmsCard = $("#filmsCard");
+const seriesCard = $("#seriesCard");
+const tvCount = $("#tvCount");
+const filmsCount = $("#filmsCount");
+const seriesCount = $("#seriesCount");
+const dashInfo = $("#dashInfo");
+const changePlaylistBtn = $("#changePlaylistBtn");
 
-/* Dashboard UI */
-const countTV = $("#countTV");
-const countFILMS = $("#countFILMS");
-const countSERIES = $("#countSERIES");
-const playlistInfo = $("#playlistInfo");
-const backToImportBtn = $("#backToImportBtn");
-
-/* Category UI */
-const backBtn = $("#backBtn");
+// Category UI
+const catBackBtn = $("#catBackBtn");
 const catTitle = $("#catTitle");
 const catSubtitle = $("#catSubtitle");
+const catSearch = $("#catSearch");
 const subcatList = $("#subcatList");
 const grid = $("#grid");
 const emptyState = $("#emptyState");
-const searchInput = $("#searchInput");
-const sortSelect = $("#sortSelect");
 
 // Series detail UI
-const viewSeriesDetail = $("#viewSeriesDetail");
 const seriesBackBtn = $("#seriesBackBtn");
 const seriesPoster = $("#seriesPoster");
-const seriesPosterWrap = $("#seriesPosterWrap");
 const seriesTitleEl = $("#seriesTitle");
 const seriesMetaEl = $("#seriesMeta");
-const seriesGroupEl = $("#seriesGroup");
+const seriesCreatorEl = $("#seriesCreator");
+const seriesDateEl = $("#seriesDate");
+const seriesGenresEl = $("#seriesGenres");
+const seriesCastEl = $("#seriesCast");
+const seriesPlotEl = $("#seriesPlot");
+const seriesPlotToggleBtn = $("#seriesPlotToggleBtn");
 const seasonTabs = $("#seasonTabs");
 const episodesTitle = $("#episodesTitle");
 const episodesList = $("#episodesList");
+
+// Film detail UI
+const filmBackdrop = requireEl($("#filmBackdrop"), "filmBackdrop");
+const filmDurationEl = requireEl($("#filmDuration"), "filmDuration");
+const filmStarsEl = requireEl($("#filmStars"), "filmStars");
+const filmCastStrip = requireEl($("#filmCastStrip"), "filmCastStrip");
+const filmCastToggleBtn = requireEl($("#filmCastToggleBtn"), "filmCastToggleBtn");
+const filmFavBtn = requireEl($("#filmFavBtn"), "filmFavBtn");
+
+// existants déjà chez toi normalement :
+const filmPoster = requireEl($("#filmPoster"), "filmPoster");
+const filmTitleEl = requireEl($("#filmTitle"), "filmTitle");
+const filmDirectorEl = requireEl($("#filmDirector"), "filmDirector");
+const filmDateEl = requireEl($("#filmDate"), "filmDate");
+const filmGenresEl = requireEl($("#filmGenres"), "filmGenres");
+const filmCastEl = requireEl($("#filmCast"), "filmCast");
+const filmPlotEl = requireEl($("#filmPlot"), "filmPlot");
+const filmPlotToggleBtn = requireEl($("#filmPlotToggleBtn"), "filmPlotToggleBtn");
+const filmDownloadBtn = requireEl($("#filmDownloadBtn"), "filmDownloadBtn");
+const filmVlcBtn = requireEl($("#filmVlcBtn"), "filmVlcBtn");
+
 
 
 // Modal UI
@@ -56,1071 +118,836 @@ const modalDownloadBtn = $("#modalDownloadBtn");
 const modalVlcBtn = $("#modalVlcBtn");
 const modalItemName = $("#modalItemName");
 const modalItemMeta = $("#modalItemMeta");
-const modalHint = $("#modalHint");
 
-
-
-/* State (en mémoire) */
+// State
 let allItems = [];
-let fileName = "";
-let activeCategory = "TV";
-let activeSubcat = "TOUT";
-let search = "";
-let sortMode = "file";
-const PAGE_SIZE = 30;
+let activeCategory = null; // "TV"|"FILMS"|"SERIES"
+let activeSubcat = "__ALL__";
+let searchQuery = "";
 
-let currentItems = [];   // items filtrés + triés
-let visibleCount = 0;    // combien sont affichés
+// For category rendering
+let renderList = [];       // array of items or shows (for SERIES)
+let rendered = 0;
 
-let modalCurrent = null; 
-// { url, name, filename, meta }
+// For SERIES detail
+let currentShow = null;    // show object
+let currentSeason = 1;
 
+// For modal
+let modalCurrent = null;
 
-// Mode de navigation spécifique aux SERIES
-let seriesMode = "shows"; // "shows" | "seasons" | "episodes"
-let selectedShowKey = null;
-let selectedSeason = null;
-let seriesDetailSourceItems = []; // items filtrés (SERIES) au moment d’ouvrir la série
-
-
-/* -------- Utils -------- */
-function setStatus(el, msg) { el.textContent = msg || ""; }
-
-function formatDateFR(d = new Date()) {
-  return d.toLocaleDateString("fr-CH", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-}
-
-function humanFileSize(bytes) {
-  const units = ["B", "KB", "MB", "GB"];
-  let i = 0;
-  let n = bytes;
-  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
-  return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-function escapeHtml(str) {
-  return String(str || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function normalizeGroupTitle(gt) {
-  const s = (gt || "").trim();
-  return s ? s : "Autres";
-}
-function normalizeGroupKey(gt) {
-  return String(gt || "")
-    .replace(/\u00A0/g, " ")     // NBSP -> espace normal
-    .replace(/\s+/g, " ")        // espaces multiples -> 1 espace
-    .trim();
-}
-function normalizeGroupKey(gt) {
-  return String(gt || "")
-    .replace(/\u00A0/g, " ")   // NBSP -> espace
-    .replace(/\s+/g, " ")      // espaces multiples -> 1 espace
-    .trim();
-}
-
-function groupLabel(gt) {
-  const s = String(gt || "").trim();
-  return s ? s : "Autres";
-}
-
-
-function sanitizeFilename(name) {
-  return String(name || "media")
-    .replace(/[\\/:*?"<>|]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
-}
-
-function guessExtFromUrl(url) {
-  try {
-    const u = new URL(url);
-    const p = u.pathname || "";
-    const m = p.match(/\.([a-z0-9]{2,5})$/i);
-    return m ? `.${m[1].toLowerCase()}` : "";
-  } catch {
-    const m = String(url || "").match(/\.([a-z0-9]{2,5})(?:\?|#|$)/i);
-    return m ? `.${m[1].toLowerCase()}` : "";
-  }
-}
-
-function openActionModal({ url, name, meta }) {
-  const ext = guessExtFromUrl(url);
-  const filename = sanitizeFilename(name) + (ext || ".mp4"); // défaut mp4 si inconnu
-
-  modalCurrent = { url, name, meta, filename };
-
-  modalItemName.textContent = name || "Élément";
-  modalItemMeta.textContent = meta || url;
-
-  actionModal.classList.remove("hidden");
-  if (modalHint) modalHint.textContent = "";
-
-}
-
-function closeActionModal() {
-  actionModal.classList.add("hidden");
-  modalCurrent = null;
-}
-
-
-
-//------Helpers -----//
-function parseSeriesSE(title) {
-  // Ex: "F is for Family (MULTI) FHD S01 E01"
-  const t = String(title || "").trim();
-  const m = t.match(/^(.*?)(?:\s+|\s*\|?\s*)S(\d{1,2})\s*E(\d{1,3})\b/i);
-  if (!m) return null;
-
-  const show = m[1].trim();
-  const season = Number(m[2]);
-  const episode = Number(m[3]);
-
-  if (!show || Number.isNaN(season) || Number.isNaN(episode)) return null;
-  return { show, season, episode };
-}
-function getSeriesShows(itemsSeries) {
-  // itemsSeries = items avec category === "SERIES"
-  // retourne array de shows (unique) via buildSeriesIndex
-  return buildSeriesIndex(itemsSeries);
-}
-
-function countShowsByGroupKey(shows) {
-  // shows: array d'objets show (issus de buildSeriesIndex)
-  // Retourne Map(groupKey -> {label, count})
-  const map = new Map();
-
-  for (const s of shows) {
-    const key = s.groupKey || "Autres";
-    const label = groupLabel(s.groupTitle);
-    const prev = map.get(key);
-
-    if (!prev) map.set(key, { label, count: 1 });
-    else map.set(key, { label: prev.label, count: prev.count + 1 });
-  }
-
-  return map;
-}
-
-
-function makeShowKey(showName) {
-  // clé stable (insensible aux espaces)
-  return showName
-    .toLowerCase()
-    .replace(/\u00A0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function buildSeriesIndex(episodeItems) {
-  // episodeItems = items déjà filtrés (cat=SERIES + subcat + search éventuellement)
-  // Retour : array de shows avec saisons/épisodes + stats utiles
-  const shows = new Map(); // showKey -> showObj
-
-  for (const it of episodeItems) {
-    const info = parseSeriesSE(it.name);
-    if (!info) continue; // si pas de Sxx Exx, on ignore ou on pourrait les traiter à part
-
-    const showKey = makeShowKey(info.show);
-    if (!shows.has(showKey)) {
-      shows.set(showKey, {
-        showKey,
-        showName: info.show,
-        logo: it.logo || "",
-        groupKey: it.groupKey || "Autres",
-        groupTitle: it.groupTitle || "",
-        minIdx: it.__idx ?? 0,
-        maxIdx: it.__idx ?? 0,
-
-        seasons: new Map(), // season -> episodes[]
-        totalEpisodes: 0
-      });
-    }
-
-    const s = shows.get(showKey);
-    s.totalEpisodes += 1;
-    s.minIdx = Math.min(s.minIdx, it.__idx ?? 0);
-    s.maxIdx = Math.max(s.maxIdx, it.__idx ?? 0);
-
-    if (!s.logo && it.logo) s.logo = it.logo; // récupère un logo si manquant
-
-    if (!s.seasons.has(info.season)) s.seasons.set(info.season, []);
-    s.seasons.get(info.season).push({ ...it, _season: info.season, _episode: info.episode, _showName: info.show });
-  }
-
-  // Trier épisodes par numéro dans chaque saison
-  for (const s of shows.values()) {
-    for (const [season, eps] of s.seasons.entries()) {
-      eps.sort((a, b) => (a._episode ?? 0) - (b._episode ?? 0));
-      s.seasons.set(season, eps);
-    }
-  }
-
-  return Array.from(shows.values());
-}
-
-function sortShows(showsArr) {
-  const arr = [...showsArr];
-
-  if (sortMode === "az") {
-    arr.sort((a, b) => a.showName.localeCompare(b.showName, "fr", { sensitivity: "base" }));
-  } else if (sortMode === "za") {
-    arr.sort((a, b) => b.showName.localeCompare(a.showName, "fr", { sensitivity: "base" }));
-  } else if (sortMode === "last") {
-    // dernier ajouté = show dont l'épisode le plus récent est le plus bas dans le fichier
-    arr.sort((a, b) => (b.maxIdx ?? 0) - (a.maxIdx ?? 0));
-  } else {
-    // ✅ ordre du fichier = show dont le premier épisode apparaît le plus tôt
-    // On calcule minIdx si tu l'as, sinon on utilise maxIdx en inverse logique.
-    // => meilleure option : stocker minIdx dans buildSeriesIndex.
-    arr.sort((a, b) => (a.minIdx ?? a.maxIdx ?? 0) - (b.minIdx ?? b.maxIdx ?? 0));
-  }
-
-  return arr;
-}
-
-function openSeriesDetail(showKey, sourceItems) {
-  // sourceItems = items SERIES déjà filtrés par sous-catégorie + recherche
-  seriesDetailShowKey = showKey;
-  seriesDetailSourceItems = sourceItems;
-
-  // build index sur le scope courant pour cohérence filtre/recherche
-  const shows = buildSeriesIndex(seriesDetailSourceItems);
-  const show = shows.find(s => s.showKey === showKey);
-  if (!show) return;
-
-  // season par défaut = plus petite saison
-  const seasons = Array.from(show.seasons.keys()).sort((a,b)=>a-b);
-  seriesDetailSeason = seasons[0] ?? 1;
-
-  renderSeriesDetail(show);
-  showView("seriesDetail", true);
-}
-
-function renderSeriesDetail(show) {
-  // Poster + title + meta
-  seriesTitleEl.textContent = show.showName;
-
-  const seasons = Array.from(show.seasons.keys()).sort((a,b)=>a-b);
-  const totalEps = show.totalEpisodes;
-  seriesMetaEl.textContent = `${seasons.length} saison${seasons.length>1?"s":""} • ${totalEps} épisode${totalEps>1?"s":""}`;
-
-  const gt = (show.groupTitle || "").trim();
-  seriesGroupEl.textContent = gt ? gt : "—";
-
-  // Poster
-  const poster = show.logo || "";
-  if (poster) {
-    seriesPoster.src = poster;
-    seriesPoster.style.display = "block";
-    seriesPoster.onerror = () => {
-      seriesPoster.style.display = "none";
-    };
-  } else {
-    seriesPoster.style.display = "none";
-  }
-
-  // Season tabs
-  seasonTabs.innerHTML = seasons.map(seasonNum => {
-    const active = seasonNum === seriesDetailSeason ? "active" : "";
-    return `<button class="seasonTab ${active}" type="button" data-season="${seasonNum}">Saison ${seasonNum}</button>`;
-  }).join("");
-
-  seasonTabs.querySelectorAll(".seasonTab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      seriesDetailSeason = Number(btn.dataset.season);
-      renderSeriesDetail(show); // re-render simple
-    });
+// ---------- utils ----------
+function setTopDate(){
+  const d = new Date();
+  topDate.textContent = d.toLocaleDateString("fr-FR", {
+    weekday:"long", year:"numeric", month:"long", day:"2-digit"
   });
+}
 
-  // Episodes list (saison sélectionnée)
-  const eps = show.seasons.get(seriesDetailSeason) || [];
-  const sTxt = String(seriesDetailSeason).padStart(2, "0");
-  episodesTitle.textContent = `Saison ${seriesDetailSeason} • ${eps.length} épisode${eps.length>1?"s":""}`;
+function setStatus(msg){
+  if(statusLine) statusLine.textContent = msg || "";
+}
 
-  episodesList.innerHTML = eps.map(ep => episodeRowHtml(ep, sTxt)).join("");
+function showView(name){
+  const map = { import:viewImport, dash:viewDash, category:viewCategory, seriesDetail:viewSeriesDetail, filmDetail:viewFilmDetail };
+  Object.entries(map).forEach(([k,el]) => { if(el) el.classList.toggle("hidden", k !== name); });
+  history.pushState({ view:name }, "", `#${name}`);
+}
 
-  // click episode -> copie URL + VLC
-episodesList.querySelectorAll(".episodeRow").forEach(row => {
-  row.addEventListener("click", () => {
-    const url = row.dataset.url;
-    const name = row.querySelector(".episodeName")?.textContent?.trim() || "Épisode";
-    const meta = `${show.showName} • Saison ${seriesDetailSeason}`;
-    openActionModal({ url, name, meta });
-  });
+window.addEventListener("popstate", (e)=>{
+  const v = e.state?.view || "import";
+  const map = { import:viewImport, dash:viewDash, category:viewCategory, seriesDetail:viewSeriesDetail, filmDetail:viewFilmDetail };
+  Object.entries(map).forEach(([k,el]) => { if(el) el.classList.toggle("hidden", k !== v); });
 });
 
+function escapeHtml(s){
+  return String(s||"")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
 
-function episodeRowHtml(ep, sTxt) {
-  const eMatch = String(ep.name || "").match(/\bE(\d{1,3})\b/i);
-  const eNum = eMatch ? String(Number(eMatch[1])).padStart(2,"0") : "??";
-  const code = `S${sTxt}E${eNum}`;
-
-  const thumb = ep.logo || ""; // tu peux garder le poster de la série aussi si tu veux
-  const title = ep.name || "Épisode";
-
-  return `
-    <div class="episodeRow" data-url="${escapeHtml(ep.url || "")}">
-      <div class="episodeThumb">
-        ${
-          thumb
-            ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy"
-                 onerror="this.closest('.episodeThumb').classList.add('noposter'); this.remove();">`
-            : ``
-        }
-        <div class="posterFallback">▶</div>
-      </div>
-      <div>
-        <div class="episodeMeta">${escapeHtml(code)}</div>
-        <div class="episodeName">${escapeHtml(title)}</div>
-      </div>
-    </div>
-  `;
+// ---------- parsing m3u ----------
+function parseAttrs(extinfLine){
+  const attrs = {};
+  const re = /([a-zA-Z0-9\-]+)="([^"]*)"/g;
+  let m;
+  while((m = re.exec(extinfLine)) !== null){
+    attrs[m[1]] = m[2];
+  }
+  return attrs;
 }
 
+function categorizeByUrl(url){
+  const u = String(url||"").toLowerCase();
+  if(u.includes("/movie/")) return "FILMS";
+  if(u.includes("/series/")) return "SERIES";
+  return "TV";
+}
 
-/* -------- Parsing -------- */
-function parseM3U(text) {
-  const lines = text.split(/\r?\n/).map(l => l.trim());
+function parseM3U(text){
+  const lines = String(text||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
   const items = [];
-  let currentInf = null;
+  let pending = null;
+  let idx = 0;
 
-  for (const line of lines) {
-    if (!line) continue;
-
-    if (line.startsWith("#EXTINF")) {
-      currentInf = parseExtInf(line);
+  for(const line of lines){
+    if(line.startsWith("#EXTINF")){
+      const attrs = parseAttrs(line);
+      const name = attrs["tvg-name"] || line.split(",").slice(1).join(",").trim() || "Sans titre";
+      const logo = attrs["tvg-logo"] || "";
+      const groupTitle = attrs["group-title"] || "Autres";
+      pending = { name, logo, groupTitle };
       continue;
     }
-
-    if (currentInf && !line.startsWith("#")) {
-      items.push({ ...currentInf, url: line });
-      currentInf = null;
+    if(pending && !line.startsWith("#")){
+      const url = line;
+      items.push({
+        __idx: idx++,
+        category: categorizeByUrl(url),
+        url,
+        name: pending.name,
+        logo: pending.logo,
+        groupTitle: pending.groupTitle
+      });
+      pending = null;
     }
   }
   return items;
 }
 
-function parseExtInf(extinfLine) {
-  // On parse SUR TOUTE la ligne pour capter tvg-logo même si format atypique
-  // Supporte:
-  // key="value"
-  // key='value'
-  // key=value   (sans espaces)
-  const attrs = {};
-  const attrRe = /([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^"\s,]+))/g;
+// ---------- dashboard ----------
+function updateCounts(){
+  const tv = allItems.filter(x=>x.category==="TV").length;
+  const films = allItems.filter(x=>x.category==="FILMS").length;
 
-  let m;
-  while ((m = attrRe.exec(extinfLine)) !== null) {
-    const key = m[1];
-    const val = (m[2] ?? m[3] ?? m[4] ?? "").trim();
-    attrs[key] = val;
+  // séries uniques (pas épisodes)
+  const seriesItems = allItems.filter(x=>x.category==="SERIES");
+  const uniqueShows = buildShows(seriesItems).length;
+
+  tvCount.textContent = String(tv);
+  filmsCount.textContent = String(films);
+  seriesCount.textContent = String(uniqueShows);
+
+  dashInfo.textContent = `Total: ${allItems.length} éléments`;
+}
+
+// ---------- subcats (keep order of appearance) ----------
+function buildSubcats(items){
+  const order = [];
+  const counts = new Map();
+  for(const it of items){
+    const key = (it.groupTitle || "Autres").trim() || "Autres";
+    if(!counts.has(key)){
+      counts.set(key, 0);
+      order.push(key);
+    }
+    counts.set(key, counts.get(key) + 1);
+  }
+  return { order, counts };
+}
+function buildSubcatsForShows(shows){
+  const order = [];
+  const counts = new Map();
+
+  for(const sh of shows){
+    const key = (sh.groupTitle || "Autres").trim() || "Autres";
+    if(!counts.has(key)){
+      counts.set(key, 0);
+      order.push(key);
+    }
+    counts.set(key, counts.get(key) + 1);
   }
 
-  // Fallback titre après virgule (si tvg-name vide)
-  const after = extinfLine.split(":", 2)[1] || "";
-  const commaIdx = after.lastIndexOf(",");
-  const commaTitle = commaIdx >= 0 ? after.slice(commaIdx + 1).trim() : "";
-
-  const tvgName = (attrs["tvg-name"] || "").trim();
-  const tvgLogo = (attrs["tvg-logo"] || "").trim();
-  const groupTitle = (attrs["group-title"] || "").trim();
-
-
-
-  return {
-    name: tvgName || commaTitle || "Sans titre",
-    logo: tvgLogo || "",
-    groupTitle,
-    groupKey: normalizeGroupKey(groupTitle) || "Autres",
-    raw: extinfLine
-  };
-
+  return { order, counts };
 }
 
 
 
-/* Catégorisation demandée */
-function categorize(item) {
-  const url = (item.url || "").toLowerCase();
-  const gt = (item.groupTitle || "").toLowerCase();
-  const name = (item.name || "").toUpperCase();
-
-  // 1) Priorité URL (le plus fiable)
-  if (url.includes("/series/")) return "SERIES";
-  if (url.includes("/movie/")) return "FILMS";
-
-  // Variantes très courantes
-  if (url.includes("/vod/")) return "FILMS";
-  if (url.includes("type=movie")) return "FILMS";
-  if (url.includes("type=series")) return "SERIES";
-
-  // 2) Fallback group-title
-  // (attention aux accents : on cherche des patterns simples)
-  if (gt.includes("film") || gt.includes("films") || gt.includes("vod") || gt.includes("cinema") || gt.includes("movie")) {
-    return "FILMS";
-  }
-  if (gt.includes("serie") || gt.includes("série") || gt.includes("series") || gt.includes("tv show")) {
-    return "SERIES";
-  }
-
-  // 3) Fallback name (format Sxx Exx)
-  if (/\bS\d{1,2}\s*E\d{1,2}\b/.test(name)) return "SERIES";
-
-  return "TV";
+// ---------- SERIES grouping ----------
+function normalizeShowKey(name){
+  return String(name||"")
+    .replace(/\bS\d{1,2}\s*E\d{1,3}\b/gi, "")
+    .trim()
+    .toLowerCase();
 }
 
-
-/* -------- Navigation SPA -------- */
-function showView(name, push = true) {
-  viewImport.classList.toggle("hidden", name !== "import");
-  viewDashboard.classList.toggle("hidden", name !== "dashboard");
-  viewCategory.classList.toggle("hidden", name !== "category");
-  viewSeriesDetail.classList.toggle("hidden", name !== "seriesDetail");
-
-
-  const state = { view: name, cat: activeCategory };
-  if (push) history.pushState(state, "", `#${name}${name === "category" ? `/${activeCategory}` : ""}`);
+function extractSE(name){
+  const m = String(name||"").match(/\bS(\d{1,2})\s*E(\d{1,3})\b/i);
+  return m ? { season:Number(m[1]), episode:Number(m[2]) } : null;
 }
 
-window.addEventListener("popstate", (e) => {
-  const st = e.state;
-  if (!st?.view) {
-    showView("import", false);
-    return;
-  }
-  if (st.view === "category" && st.cat) activeCategory = st.cat;
+function buildShows(seriesItems){
+  const map = new Map();
 
-  if (st.view === "dashboard") renderDashboard();
-  if (st.view === "category") renderCategory();
+  for(const it of seriesItems){
+    const showKey = normalizeShowKey(it.name);
+    const se = extractSE(it.name) || { season:1, episode:1 };
 
-  showView(st.view, false);
-});
+    if(!map.has(showKey)){
+      map.set(showKey, {
+        showKey,
+        showName: String(it.name).replace(/\bS\d{1,2}\s*E\d{1,3}\b/gi, "").trim(),
+        logo: it.logo || "",
+        groupTitle: (it.groupTitle||"Autres").trim() || "Autres",
+        seasons: new Map(),
+        totalEpisodes: 0,
+        minIdx: it.__idx
+      });
+    }
 
-/* -------- Dashboard -------- */
-function renderDashboard() {
-  const tvItems = allItems.filter(i => i.category === "TV");
-  const filmItems = allItems.filter(i => i.category === "FILMS");
-  const seriesItems = allItems.filter(i => i.category === "SERIES");
-
-  const shows = getSeriesShows(seriesItems); // ✅ séries uniques
-
-  countTV.textContent = String(tvItems.length);
-  countFILMS.textContent = String(filmItems.length);
-  countSERIES.textContent = String(shows.length); // ✅ pas les épisodes
-
-  playlistInfo.textContent = fileName
-    ? `Playlist: ${fileName} · ${allItems.length} éléments`
-    : `Playlist chargée · ${allItems.length} éléments`;
-}
-
-
-/* -------- Category View -------- */
-function setActiveSubcatButton(key) {
-  $$(".subcatBtn").forEach(b => b.classList.toggle("active", b.dataset.key === key));
-}
-
-
-
-function sortItems(items) {
-  const arr = [...items];
-
-  if (sortMode === "az") {
-    arr.sort((a, b) => (a.name || "").localeCompare(b.name || "", "fr", { sensitivity: "base" }));
-  } else if (sortMode === "za") {
-    arr.sort((a, b) => (b.name || "").localeCompare(a.name || "", "fr", { sensitivity: "base" }));
-  } else if (sortMode === "last") {
-    // Derniers ajoutés (inverse de l'ordre du fichier)
-    arr.sort((a, b) => (b.__idx ?? 0) - (a.__idx ?? 0));
-  } else {
-    // ✅ Par défaut: ordre du fichier (croissant)
-    arr.sort((a, b) => (a.__idx ?? 0) - (b.__idx ?? 0));
+    const sh = map.get(showKey);
+    if(!sh.seasons.has(se.season)) sh.seasons.set(se.season, []);
+    sh.seasons.get(se.season).push(it);
+    sh.totalEpisodes++;
+    sh.minIdx = Math.min(sh.minIdx, it.__idx);
   }
 
+  // keep playlist order by first appearance
+  const arr = Array.from(map.values()).sort((a,b)=>a.minIdx - b.minIdx);
+
+  // keep episode order in season
+  for(const sh of arr){
+    for(const [s, eps] of sh.seasons.entries()){
+      eps.sort((a,b)=>(a.__idx??0)-(b.__idx??0));
+      sh.seasons.set(s, eps);
+    }
+  }
   return arr;
 }
 
+// ---------- modal ----------
+function openModal({ url, name, meta }){
+  modalCurrent = { url, name, meta };
+  modalItemName.textContent = name || "Élément";
+  modalItemMeta.textContent = meta || url;
+  actionModal.classList.remove("hidden");
+}
+function closeModal(){
+  actionModal.classList.add("hidden");
+  modalCurrent = null;
+}
 
-function subcatBtnHtml(label, key, count) {
+modalCloseBtn.addEventListener("click", closeModal);
+modalCancelBtn.addEventListener("click", closeModal);
+actionModal.addEventListener("click", (e)=>{ if(e.target === actionModal) closeModal(); });
+
+modalDownloadBtn.addEventListener("click", ()=>{
+  if(!modalCurrent) return;
+  console.log("🌐 Open link:", modalCurrent.url);
+  window.open(modalCurrent.url, "_blank", "noopener");
+  closeModal();
+});
+
+modalVlcBtn.addEventListener("click", ()=>{
+  if(!modalCurrent) return;
+  console.log("▶ VLC:", modalCurrent.url);
+  window.open(`vlc://${modalCurrent.url}`, "_blank");
+  closeModal();
+});
+
+// ---------- rendering category ----------
+function subcatBtnHtml(key, label, count, active){
   return `
-    <button class="subcatBtn" type="button" data-key="${escapeHtml(key)}">
+    <button class="subcatBtn ${active ? "active":""}" type="button" data-key="${escapeHtml(key)}">
       <span class="subcatName">${escapeHtml(label)}</span>
       <span class="subcatCount">${count}</span>
     </button>
   `;
 }
 
+function renderSubcats(list, totalOverride = null){
+  // list = items (TV/FILMS) OU shows (SERIES)
+  const isShows = activeCategory === "SERIES";
 
+  const built = isShows ? buildSubcatsForShows(list) : buildSubcats(list);
+  const { order, counts } = built;
 
-function renderSubcats(itemsCat) {
-  // ✅ CAS SERIES : sidebar doit compter des "séries" (shows), pas des épisodes
-  if (activeCategory === "SERIES") {
-    const shows = getSeriesShows(itemsCat);
+  const total = (totalOverride !== null) ? totalOverride : list.length;
 
-    // Map conserve l'ordre d'apparition (ordre M3U)
-    const map = new Map(); // groupKey -> { label, count }
-
-    for (const s of shows) {
-      const key = s.groupKey || "Autres";
-      const label = groupLabel(s.groupTitle);
-
-      if (!map.has(key)) map.set(key, { label, count: 1 });
-      else {
-        const prev = map.get(key);
-        map.set(key, { label: prev.label, count: prev.count + 1 });
-      }
-    }
-
-    const entries = Array.from(map.entries()); // ✅ pas de tri => ordre M3U
-
-    subcatList.innerHTML = [
-      subcatBtnHtml("TOUT", "__ALL__", shows.length), // ✅ total séries
-      ...entries.map(([key, v]) => subcatBtnHtml(v.label, key, v.count))
-    ].join("");
-
-    subcatList.querySelectorAll(".subcatBtn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        activeSubcat = btn.dataset.key;
-        setActiveSubcatButton(activeSubcat);
-
-        // Quand on change de sous-catégorie, on revient au niveau "shows"
-        seriesMode = "shows";
-        selectedShowKey = null;
-        selectedSeason = null;
-
-        renderGrid(true);
-      });
-    });
-
-    setActiveSubcatButton(activeSubcat);
-    return;
+  const rows = [];
+  rows.push(subcatBtnHtml("__ALL__", "TOUT", total, activeSubcat==="__ALL__"));
+  for(const key of order){
+    rows.push(subcatBtnHtml(key, key, counts.get(key)||0, activeSubcat===key));
   }
 
-  // ✅ CAS FILMS / TV : comportement normal (items)
-  const map = new Map(); // groupKey -> { label, count }
+  subcatList.innerHTML = rows.join("");
 
-  for (const it of itemsCat) {
-    const key = it.groupKey || "Autres";
-    const label = groupLabel(it.groupTitle);
-
-    if (!map.has(key)) map.set(key, { label, count: 1 });
-    else {
-      const prev = map.get(key);
-      map.set(key, { label: prev.label, count: prev.count + 1 });
-    }
-  }
-
-  const entries = Array.from(map.entries()); // ✅ ordre M3U
-
-  subcatList.innerHTML = [
-    subcatBtnHtml("TOUT", "__ALL__", itemsCat.length),
-    ...entries.map(([key, v]) => subcatBtnHtml(v.label, key, v.count))
-  ].join("");
-
-  subcatList.querySelectorAll(".subcatBtn").forEach(btn => {
-    btn.addEventListener("click", () => {
+  subcatList.querySelectorAll(".subcatBtn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
       activeSubcat = btn.dataset.key;
-      setActiveSubcatButton(activeSubcat);
-      renderGrid(true);
+      rendered = 0;
+      grid.scrollTop = 0;
+      renderCategoryContent();
     });
   });
-
-  setActiveSubcatButton(activeSubcat);
 }
 
 
+function applyFilters(items){
+  let scoped = items;
 
+  if(activeSubcat !== "__ALL__"){
+    scoped = scoped.filter(it => ((it.groupTitle||"Autres").trim()||"Autres") === activeSubcat);
+  }
 
+  const q = (searchQuery||"").trim().toLowerCase();
+  if(q){
+    scoped = scoped.filter(it => (it.name||"").toLowerCase().includes(q));
+  }
 
-function cardHtml(it) {
-  const title = it.name || "Sans titre";
-  const poster = it.logo || "";
+  // playlist order
+  scoped = [...scoped].sort((a,b)=>(a.__idx??0)-(b.__idx??0));
+  return scoped;
+}
 
+function filmCardHtml(it){
+  const name = it.name || "Film";
   return `
-    <div class="mediaCard" data-url="${escapeHtml(it.url || "")}" title="${escapeHtml(title)}">
-      <div class="poster">
-        ${poster
-      ? `<img src="${escapeHtml(poster)}" alt="" loading="lazy"
-                 onerror="this.closest('.poster').classList.add('noposter'); this.remove();">`
-      : ``
-    }
+    <div class="mediaCard" data-idx="${it.__idx}">
+      <div class="poster noposter">
+        <img class="filmPosterImg"
+             data-movietitle="${escapeHtml(name)}"
+             alt=""
+             loading="lazy">
         <div class="posterFallback">🎬</div>
       </div>
-      <div class="mediaTitle">${escapeHtml(title)}</div>
+      <div class="mediaTitle">${escapeHtml(name)}</div>
     </div>
   `;
 }
-function seriesCardHtml(x) {
-  // x peut être show / season / episode
-  const poster = x.logo || "";
-  let title = "";
-  let meta = "";
 
-  if (x._type === "show") {
-    title = x.showName;
-    meta = `${x.seasonsCount} saison(s) · ${x.episodesCount} épisode(s)`;
-  } else if (x._type === "season") {
-    title = `Saison ${String(x.season).padStart(2, "0")}`;
-    meta = `${x.episodesCount} épisode(s)`;
-  } else {
-    // episode
-    title = x.name || "Épisode";
-    meta = groupLabel(x.groupTitle);
-  }
+
+
+function showCardHtml(sh){
+  const name = sh.showName || "Série";
+  const meta = `${sh.seasons.size} saison${sh.seasons.size>1?"s":""} • ${sh.totalEpisodes} épisode${sh.totalEpisodes>1?"s":""}`;
 
   return `
-    <div class="mediaCard" data-type="${x._type}" data-showkey="${escapeHtml(x.showKey || "")}" data-season="${x.season ?? ""}" data-url="${escapeHtml(x.url || "")}">
-      <div class="poster">
-        ${poster ? `<img src="${escapeHtml(poster)}" alt="" loading="lazy"
-          onerror="this.closest('.poster').classList.add('noposter'); this.remove();">` : ``}
+    <div class="mediaCard" data-showkey="${escapeHtml(sh.showKey)}">
+      <div class="poster noposter">
+        <img class="seriesPosterImg"
+             data-showtitle="${escapeHtml(name)}"
+             alt=""
+             loading="lazy"
+             style="display:none;">
         <div class="posterFallback">🎬</div>
       </div>
-      <div class="mediaTitle">${escapeHtml(title)}</div>
+      <div class="mediaTitle">${escapeHtml(name)}</div>
       <div class="muted small">${escapeHtml(meta)}</div>
     </div>
   `;
 }
 
-function bindSeriesCardClicks() {
-  grid.querySelectorAll(".mediaCard").forEach(el => {
-    if (el.dataset.bound) return;
-    el.dataset.bound = "1";
-
-    el.addEventListener("click", async () => {
-      const type = el.dataset.type;
-
-     if (type === "show") {
-  // ✅ on reconstruit les items SERIES filtrés actuels (mêmes règles que renderGrid)
-  const itemsCat = allItems.filter(it => it.category === "SERIES");
-  let scoped = itemsCat;
-
-  if (activeSubcat !== "__ALL__") {
-    scoped = scoped.filter(it => (it.groupKey || "Autres") === activeSubcat);
-  }
-
-  if (search.trim()) {
-    const q = search.trim().toLowerCase();
-    scoped = scoped.filter(it =>
-      (it.name || "").toLowerCase().includes(q) ||
-      (it.groupTitle || "").toLowerCase().includes(q)
-    );
-  }
-
-  openSeriesDetail(el.dataset.showkey, scoped);
-  return;
-}
 
 
-      if (type === "season") {
-        seriesMode = "episodes";
-        selectedSeason = Number(el.dataset.season);
-        renderGrid(true);
-        showView("category", true);
-        return;
-      }
+function renderMore(){
+  const total = renderList.length;
+  if (rendered >= total) return;
 
-      // episode -> action lecture
-      const url = el.dataset.url;
-      try { await navigator.clipboard.writeText(url); } catch { }
-      window.open(`vlc://${url}`, "_blank");
-    });
-  });
-}
+  const slice = renderList.slice(rendered, rendered + BATCH);
+  rendered += slice.length;
 
-seriesBackBtn.addEventListener("click", () => {
-  showView("category", true);   // retour à la liste des séries (shows)
-});
-
-
-function renderGrid(reset = true) {
-  const itemsCat = allItems.filter(it => it.category === activeCategory);
-  let items = itemsCat;
-
-  // Filtre sous-catégorie (groupKey)
-  if (activeSubcat !== "__ALL__") {
-    items = items.filter(it => (it.groupKey || "Autres") === activeSubcat);
-  }
-
-  // Recherche
-  if (search.trim()) {
-    const q = search.trim().toLowerCase();
-    items = items.filter(it =>
-      (it.name || "").toLowerCase().includes(q) ||
-      (it.groupTitle || "").toLowerCase().includes(q)
-    );
-  }
-
-  // ✅ CAS SERIES : transformer épisodes -> shows/saisons/épisodes
-  if (activeCategory === "SERIES") {
-    const shows = buildSeriesIndex(items); // items = épisodes filtrés (source)
-
-    let listToShow = [];
-
-    if (seriesMode === "shows") {
-      // 1 card par série
-      listToShow = sortShows(shows).map(s => ({
-        _type: "show",
-        showKey: s.showKey,
-        showName: s.showName,
-        logo: s.logo,
-        seasonsCount: s.seasons.size,
-        episodesCount: s.totalEpisodes,
-        maxIdx: s.maxIdx
-      }));
-
-    } else if (seriesMode === "seasons") {
-      // liste des saisons d'une série
-      const show = shows.find(x => x.showKey === selectedShowKey);
-      if (!show) {
-        seriesMode = "shows";
-        selectedShowKey = null;
-        selectedSeason = null;
-        return renderGrid(true);
-      }
-
-      const seasons = Array.from(show.seasons.keys()).sort((a, b) => a - b);
-      listToShow = seasons.map(seasonNum => ({
-        _type: "season",
-        showKey: show.showKey,
-        showName: show.showName,
-        logo: show.logo,
-        season: seasonNum,
-        episodesCount: show.seasons.get(seasonNum).length,
-        maxIdx: show.maxIdx
-      }));
-
-    } else if (seriesMode === "episodes") {
-      // liste des épisodes d'une saison
-      const show = shows.find(x => x.showKey === selectedShowKey);
-      if (!show || !show.seasons.has(selectedSeason)) {
-        seriesMode = "shows";
-        selectedShowKey = null;
-        selectedSeason = null;
-        return renderGrid(true);
-      }
-
-      const eps = show.seasons.get(selectedSeason);
-
-      // tri épisodes selon le tri global
-      const epsSorted = sortItems(eps);
-      listToShow = epsSorted.map(ep => ({
-        _type: "episode",
-        ...ep
-      }));
-    }
-
-    // Pagination (30/30)
-    currentItems = listToShow;
-    if (reset) {
-      visibleCount = PAGE_SIZE;
-      grid.innerHTML = "";
-      grid.scrollTop = 0;
-    }
-
-    const slice = currentItems.slice(0, visibleCount);
-
-    // Title & Subtitle (cohérents)
-    if (seriesMode === "shows") {
-      catTitle.textContent = "SERIES";
-      catSubtitle.textContent = `${shows.length} séries · Affichés: ${slice.length}`;
-    } else if (seriesMode === "seasons") {
-      const showName = shows.find(x => x.showKey === selectedShowKey)?.showName || "";
-      catTitle.textContent = `SERIES · ${showName}`;
-      catSubtitle.textContent = `Saisons · Affichés: ${slice.length}`;
-    } else {
-      const showName = shows.find(x => x.showKey === selectedShowKey)?.showName || "";
-      const sNum = String(selectedSeason).padStart(2, "0");
-      catTitle.textContent = `SERIES · ${showName} · S${sNum}`;
-      catSubtitle.textContent = `Épisodes · Affichés: ${slice.length}`;
-    }
-
-    grid.innerHTML = slice.map(seriesCardHtml).join("");
-    emptyState.classList.toggle("hidden", slice.length !== 0);
-
-    bindSeriesCardClicks();
-    return;
-  }
-
-  // ✅ CAS TV / FILMS : comportement normal + pagination
-  items = sortItems(items);
-  currentItems = items;
-
-  if (reset) {
-    visibleCount = PAGE_SIZE;
-    grid.innerHTML = "";
-    grid.scrollTop = 0;
-  }
-
-  const slice = currentItems.slice(0, visibleCount);
-
-  catTitle.textContent = activeCategory;
-  catSubtitle.textContent = `${itemsCat.length} éléments · Affichés: ${slice.length}`;
-
-  grid.innerHTML = slice.map(cardHtml).join("");
-  emptyState.classList.toggle("hidden", slice.length !== 0);
-
-  bindCardClicks();
-}
-
-
-function loadMoreIfNeeded() {
-  // rien à charger
-  if (!currentItems || visibleCount >= currentItems.length) return;
-
-  const prevCount = visibleCount;
-  visibleCount = Math.min(visibleCount + PAGE_SIZE, currentItems.length);
-
-  // on ajoute uniquement les nouveaux items
-  const newSlice = currentItems.slice(prevCount, visibleCount);
-
-  // append (⚠️ pas innerHTML = sinon reset)
-  const html =
-    activeCategory === "SERIES"
-      ? newSlice.map(seriesCardHtml).join("")
-      : newSlice.map(cardHtml).join("");
+  const html = slice.map(x => {
+    if (activeCategory === "SERIES") return showCardHtml(x);
+    if (activeCategory === "FILMS") return filmCardHtml(x);
+    return cardHtml(x); // TV
+  }).join("");
 
   grid.insertAdjacentHTML("beforeend", html);
 
-  // rebind uniquement les nouveaux
-  if (activeCategory === "SERIES") {
-    bindSeriesCardClicks();
-  } else {
-    bindCardClicks();
+
+  bindGridClicks();
+
+  // posters TMDB (films)
+  if (activeCategory === "FILMS") {
+    setTimeout(hydrateFilmPosters, 0);
+  }
+  // posters TMDB (series) si tu as la fonction
+  if (activeCategory === "SERIES" && typeof hydrateSeriesPosters === "function") {
+    setTimeout(hydrateSeriesPosters, 0);
   }
 }
 
-function bindCardClicks() {
-  grid.querySelectorAll(".mediaCard").forEach(el => {
-    if (el.dataset.bound) return;
-    el.dataset.bound = "1";
 
-    el.addEventListener("click", () => {
-      const url = el.dataset.url;
-      const name = el.querySelector(".mediaTitle")?.textContent?.trim() || "Élément";
-      const meta = activeCategory; // TV / FILMS
-      openActionModal({ url, name, meta });
+function bindGridClicks(){
+  // items
+  grid.querySelectorAll(".mediaCard[data-idx]").forEach(el=>{
+    if(el.dataset.bound) return;
+    el.dataset.bound = "1";
+    el.addEventListener("click", ()=>{
+      const idx = Number(el.dataset.idx);
+      const it = allItems.find(x=>x.__idx===idx);
+      if(!it) return;
+
+      if(activeCategory === "FILMS"){
+        openFilmDetail(it);
+        return;
+      }
+
+      // TV
+      openModal({ url: it.url, name: it.name, meta: it.groupTitle || activeCategory });
+    });
+  });
+
+  // shows
+  grid.querySelectorAll(".mediaCard[data-showkey]").forEach(el=>{
+    if(el.dataset.bound) return;
+    el.dataset.bound = "1";
+    el.addEventListener("click", ()=>{
+      const key = el.dataset.showkey;
+      const shows = renderList; // current shows list
+      const sh = shows.find(s=>s.showKey===key);
+      if(sh) openSeriesDetail(sh);
     });
   });
 }
 
+let __posterQueueRunning = false;
 
+async function hydrateSeriesPosters(){
+  if (__posterQueueRunning) return;
+  if (!(window.Metadata && window.Metadata.isReady && window.Metadata.isReady())) return;
 
+  __posterQueueRunning = true;
 
-function renderCategory() {
-  if (activeCategory === "SERIES") {
-    seriesMode = "shows";
-    selectedShowKey = null;
-    selectedSeason = null;
+  try {
+    const imgs = Array.from(grid.querySelectorAll("img.seriesPosterImg"))
+      .filter(img => !img.dataset.tmdbDone)
+      .slice(0, 30); // batch raisonnable
+
+    for (const img of imgs) {
+      img.dataset.tmdbDone = "1";
+
+      const title = img.dataset.showtitle || "";
+      if (!title) continue;
+
+      try {
+        // Utilise le fetch TMDB (poster only idéal)
+        const poster = await window.Metadata.getShowPoster(title);
+
+        if (poster) {
+          img.src = poster;
+          img.style.display = "block";
+          const posterBox = img.closest(".poster");
+          posterBox?.classList.remove("noposter");
+        }
+      } catch {
+        // Si TMDB fail => on laisse le placeholder (pas de tvg-logo)
+      }
+    }
+  } finally {
+    __posterQueueRunning = false;
+
+    // relance en micro-batch si il reste des posters à charger
+    const remaining = grid.querySelector("img.seriesPosterImg:not([data-tmdb-done])");
+    if (remaining) setTimeout(hydrateSeriesPosters, 50);
   }
+}
+let __filmPosterQueueRunning = false;
 
-  search = "";
-  searchInput.value = "";
-  sortMode = "file";
-  sortSelect.value = "file";
+async function hydrateFilmPosters(){
+
+  if (__filmPosterQueueRunning) return;
+  if (!(window.Metadata && window.Metadata.isReady && window.Metadata.isReady())) return;
+
+  __filmPosterQueueRunning = true;
+
+  try {
+    const imgs = Array.from(grid.querySelectorAll("img.filmPosterImg"))
+      .filter(img => !img.dataset.tmdbDone)
+      .slice(0, 30);
 
 
-  activeSubcat = "__ALL__";
+    for (const img of imgs) {
+      img.dataset.tmdbDone = "1";
 
+      const title = img.dataset.movietitle || "";
+      if (!title) continue;
 
-  const itemsCat = allItems.filter(it => it.category === activeCategory);
-  renderSubcats(itemsCat);
-  renderGrid();
+      try {
+        const poster = await window.Metadata.getMoviePoster(title);
+
+        if (poster) {
+          img.src = poster;
+          img.closest(".poster")?.classList.remove("noposter");
+        }
+      } catch (e) {
+        console.warn("🎞 poster fail:", title, e);
+      }
+    }
+  } finally {
+    __filmPosterQueueRunning = false;
+
+    const remaining = grid.querySelector("img.filmPosterImg:not([data-tmdb-done])");
+    if (remaining) setTimeout(hydrateFilmPosters, 80);
+  }
 }
 
-/* -------- Import -------- */
-async function handleFile(file) {
-  if (!file) return;
 
-  const lower = (file.name || "").toLowerCase();
-  const okExt = lower.endsWith(".m3u") || lower.endsWith(".m3u8");
-  const okType = (file.type || "").includes("mpegurl") || (file.type || "").includes("text");
 
-  if (!okExt && !okType) {
-    setStatus(importStatus, "Format non supporté. Charge un fichier .m3u ou .m3u8");
+function bindInfiniteScroll(){
+  grid.onscroll = null;
+  grid.addEventListener("scroll", ()=>{
+    const near = grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 300;
+    if(near) renderMore();
+  }, { passive:true });
+}
+
+function renderCategoryContent(){
+  grid.innerHTML = "";
+  emptyState.classList.add("hidden");
+  rendered = 0;
+
+  const itemsCat = allItems.filter(x => x.category === activeCategory);
+
+
+
+  // sous-cats (ordre du fichier)
+  renderSubcats(itemsCat);
+
+  // build list
+if (activeCategory === "SERIES") {
+  const scopedEpisodes = applyFilters(itemsCat);
+
+  // shows = séries uniques dans l’ordre playlist
+  const shows = buildShows(scopedEpisodes);
+
+  // Sidebar: TOUT = nb de séries uniques, sous-cats = nb de séries par group-title
+  renderSubcats(shows, shows.length);
+
+  // Appliquer filtre sous-cat sur les shows (pas sur les épisodes)
+  if (activeSubcat !== "__ALL__") {
+    renderList = shows.filter(sh => ((sh.groupTitle||"Autres").trim()||"Autres") === activeSubcat);
+  } else {
+    renderList = shows;
+  }
+
+  // Recherche côté shows (au cas où) : filtrer par nom de série
+  const q = (searchQuery||"").trim().toLowerCase();
+  if (q) {
+    renderList = renderList.filter(sh => (sh.showName||"").toLowerCase().includes(q));
+  }
+
+  catSubtitle.textContent = `${renderList.length} série(s)`;
+} else {
+  // TV / FILMS inchangé
+  renderSubcats(itemsCat);
+
+  renderList = applyFilters(itemsCat);
+  catSubtitle.textContent = `${renderList.length} élément(s)`;
+}
+
+
+  if (!renderList.length) {
+    emptyState.classList.remove("hidden");
     return;
   }
 
-  setStatus(importStatus, "Lecture et analyse du fichier…");
-  const text = await file.text();
-
-  const base = parseM3U(text);
-
-  allItems = base.map((it, idx) => ({
-    ...it,
-    __idx: idx,
-    category: categorize(it)
-
-  }));
-  console.log("EXTINF sample raw:", base[0]?.raw);
-  console.log("Parsed sample:", base[0]);
-
-  // DEBUG : voir les sous-catégories détectées pour FILMS
-  const filmGroups = allItems
-    .filter(x => x.category === "FILMS")
-    .map(x => (x.groupTitle || "").trim())
-    .filter(Boolean);
-
-  const unique = Array.from(new Set(filmGroups)).sort((a, b) => a.localeCompare(b, "fr", { sensitivity: "base" }));
-  console.log("FILMS - sous catégories (uniques):", unique.length, unique);
-
-
-
-  fileName = file.name;
-  dzMeta.textContent = `${file.name} · ${humanFileSize(file.size)} · ${allItems.length} éléments`;
-  setStatus(importStatus, `Playlist analysée ✅ (${allItems.length} éléments).`);
-
-  renderDashboard();
-  showView("dashboard", true);
+  renderMore();
+  bindInfiniteScroll();
 }
 
-function initDropZone() {
-  const openPicker = () => m3uFileInput.click();
 
-  dropZone.addEventListener("click", openPicker);
-  dropZone.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") openPicker();
-  });
-
-  m3uFileInput.addEventListener("change", () => {
-    handleFile(m3uFileInput.files?.[0]);
-  });
-
-  ["dragenter", "dragover"].forEach(evt => {
-    dropZone.addEventListener(evt, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dropZone.classList.add("dragover");
-    });
-  });
-
-  ["dragleave", "drop"].forEach(evt => {
-    dropZone.addEventListener(evt, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dropZone.classList.remove("dragover");
-    });
-  });
-
-  dropZone.addEventListener("drop", (e) => {
-    handleFile(e.dataTransfer?.files?.[0]);
-  });
+function openCategory(cat){
+  activeCategory = cat;
+  activeSubcat = "__ALL__";
+  searchQuery = "";
+  catSearch.value = "";
+  catTitle.textContent = cat;
+  renderCategoryContent();
+  showView("category");
 }
 
-/* -------- Events -------- */
-
-// Dashboard -> category
-$$(".catCard").forEach(btn => {
-  btn.addEventListener("click", () => {
-    if (!allItems.length) return;
-    activeCategory = btn.dataset.cat;
-    renderCategory();
-    showView("category", true);
+// ---------- Series detail ----------
+function bindPlotToggle(btn, el){
+  btn.addEventListener("click", ()=>{
+    const exp = el.classList.toggle("expanded");
+    btn.textContent = exp ? "Réduire" : "Lire plus";
   });
-});
+}
+bindPlotToggle(seriesPlotToggleBtn, seriesPlotEl);
+bindPlotToggle(filmPlotToggleBtn, filmPlotEl);
 
-backBtn.addEventListener("click", () => {
-  if (activeCategory === "SERIES") {
-    if (seriesMode === "episodes") {
-      seriesMode = "seasons";
-      selectedSeason = null;
-      renderGrid(true);
-      return;
-    }
-    if (seriesMode === "seasons") {
-      seriesMode = "shows";
-      selectedShowKey = null;
-      renderGrid(true);
-      return;
-    }
+function openSeriesDetail(show){
+  currentShow = show;
+  const seasons = Array.from(show.seasons.keys()).sort((a,b)=>a-b);
+  currentSeason = seasons[0] || 1;
+  renderSeriesDetail();
+  showView("seriesDetail");
+}
+
+function episodeRowHtml(ep){
+  const se = extractSE(ep.name) || { season:1, episode:1 };
+  const code = `S${String(se.season).padStart(2,"0")}E${String(se.episode).padStart(2,"0")}`;
+  const thumb = ep.logo || currentShow.logo || "";
+  return `
+    <div class="episodeRow" data-idx="${ep.__idx}">
+      <div class="episodeThumb">
+        ${thumb ? `<img src="${escapeHtml(thumb)}" alt="" loading="lazy"
+          onerror="this.remove();">` : ""}
+        <div class="posterFallback">▶</div>
+      </div>
+      <div>
+        <div class="episodeMeta muted small">${escapeHtml(code)}</div>
+        <div class="episodeName">${escapeHtml(ep.name)}</div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderSeriesDetail(){
+  const sh = currentShow;
+  if(!sh) return;
+
+  seriesTitleEl.textContent = sh.showName;
+  seriesMetaEl.textContent = `${sh.seasons.size} saison${sh.seasons.size>1?"s":""} • ${sh.totalEpisodes} épisode${sh.totalEpisodes>1?"s":""}`;
+
+  // poster initial m3u
+  if(sh.logo){
+    seriesPoster.src = sh.logo;
+    seriesPoster.style.display = "block";
+  } else {
+    seriesPoster.removeAttribute("src");
   }
 
-  // comportement normal
-  renderDashboard();
-  showView("dashboard", true);
-});
+  // reset info
+  seriesCreatorEl.textContent = "—";
+  seriesDateEl.textContent = "—";
+  seriesGenresEl.textContent = "—";
+  seriesCastEl.textContent = "—";
+  seriesPlotEl.textContent = "—";
+  seriesPlotEl.classList.remove("expanded");
+  seriesPlotToggleBtn.textContent = "Lire plus";
+
+  // seasons tabs
+  const seasons = Array.from(sh.seasons.keys()).sort((a,b)=>a-b);
+  seasonTabs.innerHTML = seasons.map(s=>{
+    return `<button class="seasonTab ${s===currentSeason?"active":""}" type="button" data-season="${s}">Saison ${s}</button>`;
+  }).join("");
+
+  seasonTabs.querySelectorAll(".seasonTab").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      currentSeason = Number(btn.dataset.season);
+      renderSeriesDetail();
+    });
+  });
+
+  const eps = sh.seasons.get(currentSeason) || [];
+  episodesTitle.textContent = `Saison ${currentSeason} • ${eps.length} épisode${eps.length>1?"s":""}`;
+  episodesList.innerHTML = eps.map(episodeRowHtml).join("");
+
+  episodesList.querySelectorAll(".episodeRow").forEach(row=>{
+    row.addEventListener("click", ()=>{
+      const idx = Number(row.dataset.idx);
+      const it = allItems.find(x=>x.__idx===idx);
+      if(!it) return;
+      openModal({ url: it.url, name: it.name, meta: `${sh.showName} • Saison ${currentSeason}` });
+    });
+  });
+
+  // TMDB info if configured
+  try{
+    if(window.Metadata && window.Metadata.isReady()){
+      const meta = await window.Metadata.getShow(sh.showName);
+      seriesCreatorEl.textContent = meta.creator || "—";
+      seriesDateEl.textContent = meta.date || "—";
+      seriesGenresEl.textContent = meta.genres || "—";
+      seriesCastEl.textContent = meta.cast || "—";
+      seriesPlotEl.textContent = meta.overview || "—";
+      if(meta.poster){
+        seriesPoster.src = meta.poster;
+      }
+    }
+  }catch{
+    // keep m3u data
+  }
+}
+
+// ---------- Film detail ----------
+async function openFilmDetail(it){
+  // Actions (toujours)
+  if (filmDownloadBtn) filmDownloadBtn.onclick = () => {
+    window.open(it.url, "_blank", "noopener");
+  };
+  if (filmVlcBtn) filmVlcBtn.onclick = () => {
+    window.open(`vlc://${it.url}`, "_blank");
+  };
+
+  // Reset UI (safe)
+  setText(filmTitleEl, it.name || "Film");
+  setText(filmDirectorEl, "—");
+  setText(filmDateEl, "—");
+  setText(filmDurationEl, "—");
+  setText(filmGenresEl, "—");
+  setText(filmCastEl, "—");
+  setText(filmPlotEl, "—");
+  if (filmPlotEl) filmPlotEl.classList.remove("expanded");
+  setText(filmPlotToggleBtn, "Read more");
+
+  setHTML(filmCastStrip, "");
+  setHTML(filmStarsEl, "");
+  setBg(filmBackdrop, "");
+
+  if (filmFavBtn) filmFavBtn.textContent = "♡";
+
+  // Poster fallback (m3u)
+  setSrc(filmPoster, it.logo || "");
+
+  showView("filmDetail");
+
+  // Fetch TMDB
+  try {
+    if (window.Metadata && window.Metadata.isReady && window.Metadata.isReady()) {
+      const meta = await window.Metadata.getMovie(it.name);
+
+      setText(filmTitleEl, meta.title || it.name);
+      setBg(filmBackdrop, meta.backdrop || "");
+      setSrc(filmPoster, meta.poster || (it.logo || ""));
+
+      setText(filmDirectorEl, meta.director || "—");
+      setText(filmDateEl, meta.date || "—");
+
+      if (filmDurationEl) {
+        if (meta.runtime) {
+          const h = Math.floor(meta.runtime / 60);
+          const m = meta.runtime % 60;
+          filmDurationEl.textContent = `${String(h).padStart(2,"0")}h ${String(m).padStart(2,"0")}m`;
+        } else {
+          filmDurationEl.textContent = "—";
+        }
+      }
+
+      setText(filmGenresEl, meta.genres || "—");
+
+      // Cast line + toggle
+      const castFull = meta.cast || "—";
+      let castExpanded = false;
+
+      function renderCastLine(){
+        if (!filmCastEl) return;
+        if (!filmCastToggleBtn) {
+          filmCastEl.textContent = castFull;
+          return;
+        }
+        if (castExpanded || castFull.length <= 120) {
+          filmCastEl.textContent = castFull;
+          filmCastToggleBtn.textContent = "Hide";
+        } else {
+          filmCastEl.textContent = castFull.slice(0,120).trim() + "…";
+          filmCastToggleBtn.textContent = "Read more";
+        }
+      }
+
+      if (filmCastToggleBtn) {
+        filmCastToggleBtn.onclick = () => {
+          castExpanded = !castExpanded;
+          renderCastLine();
+        };
+      }
+      renderCastLine();
+
+      // Plot + toggle
+      setText(filmPlotEl, meta.overview || "—");
+      if (filmPlotToggleBtn) {
+        filmPlotToggleBtn.onclick = () => {
+          if (!filmPlotEl) return;
+          const exp = filmPlotEl.classList.toggle("expanded");
+          filmPlotToggleBtn.textContent = exp ? "Hide" : "Read more";
+        };
+      }
+
+      // Stars
+      if (filmStarsEl) {
+        const vote = typeof meta.vote === "number" ? meta.vote : 0;
+        const starCount = vote ? Math.round(vote / 2) : 0;
+        let html = "";
+        for (let i=1;i<=5;i++){
+          html += `<span class="${i<=starCount ? "" : "starMuted"}">★</span>`;
+        }
+        filmStarsEl.innerHTML = html;
+      }
+
+      // Cast strip photos
+      if (filmCastStrip && Array.isArray(meta.castList)) {
+        filmCastStrip.innerHTML = meta.castList.map(p => `
+          <div class="castChip">
+            <div class="castAvatar">
+              ${p.profile ? `<img src="${escapeHtml(p.profile)}" alt="" loading="lazy">` : ""}
+            </div>
+            <div class="castName">${escapeHtml(p.name || "")}</div>
+          </div>
+        `).join("");
+      }
+    }
+  } catch (e) {
+    console.warn("TMDB film meta failed", e);
+  }
+}
 
 
-// Dashboard -> back import
-backToImportBtn.addEventListener("click", () => {
-  showView("import", true);
+
+// ---------- events ----------
+catBackBtn.addEventListener("click", ()=> showView("dash"));
+seriesBackBtn.addEventListener("click", ()=> showView("category"));
+filmBackBtn.addEventListener("click", ()=> showView("category"));
+
+catSearch.addEventListener("input", ()=>{
+  searchQuery = catSearch.value || "";
+  rendered = 0;
+  grid.scrollTop = 0;
+  renderCategoryContent();
 });
 
-// Search / sort
-searchInput.addEventListener("input", () => {
-  search = searchInput.value;
-  renderGrid();
-});
-sortSelect.addEventListener("change", () => {
-  sortMode = sortSelect.value;
-  renderGrid();
-});
+tvCard.addEventListener("click", ()=>openCategory("TV"));
+filmsCard.addEventListener("click", ()=>openCategory("FILMS"));
+seriesCard.addEventListener("click", ()=>openCategory("SERIES"));
 
-// Reset (reviens à import et purge mémoire)
-clearBtn.addEventListener("click", () => {
+changePlaylistBtn.addEventListener("click", ()=>showView("import"));
+resetBtn.addEventListener("click", ()=>{
   allItems = [];
-  fileName = "";
-  dzMeta.textContent = "";
-  setStatus(importStatus, "Charge une playlist M3U pour démarrer.");
-  showView("import", true);
+  setStatus("Réinitialisé.");
+  showView("import");
 });
 
-/* -------- Init -------- */
-topDate.textContent = formatDateFR(new Date());
-initDropZone();
-setStatus(importStatus, "Charge une playlist M3U pour démarrer.");
-history.replaceState({ view: "import" }, "", "#import");
-grid.addEventListener("scroll", () => {
-  const threshold = grid.scrollHeight * 0.8;
-  const position = grid.scrollTop + grid.clientHeight;
+// Import bind
+function bindImport(){
+  const handleFile = async (file)=>{
+    if(!file) return;
+    setStatus(`Lecture: ${file.name}…`);
+    try{
+      const text = await file.text();
+      allItems = parseM3U(text);
+      updateCounts();
+      setStatus(`Playlist chargée ✅ (${allItems.length} éléments)`);
+      showView("dash");
+    }catch(e){
+      setStatus(`Erreur: ${e?.message || e}`);
+      console.error(e);
+    }
+  };
 
-  if (position >= threshold) {
-    loadMoreIfNeeded();
-  }
-});
+  dropzone.addEventListener("click", ()=>fileInput.click());
+  dropzone.addEventListener("dragover", (e)=>{ e.preventDefault(); dropzone.classList.add("dragover"); });
+  dropzone.addEventListener("dragleave", ()=>dropzone.classList.remove("dragover"));
+  dropzone.addEventListener("drop", (e)=>{
+    e.preventDefault();
+    dropzone.classList.remove("dragover");
+    handleFile(e.dataTransfer.files?.[0]);
+  });
 
-modalCloseBtn.addEventListener("click", closeActionModal);
-modalCancelBtn.addEventListener("click", closeActionModal);
+  fileInput.addEventListener("change", (e)=>{
+    handleFile(e.target.files?.[0]);
+    e.target.value = "";
+  });
+}
 
-// clic hors de la carte => ferme
-actionModal.addEventListener("click", (e) => {
-  if (e.target === actionModal) closeActionModal();
-});
+// Init
+(function init(){
+  setTopDate();
+  bindImport();
 
-// ESC => ferme
-window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !actionModal.classList.contains("hidden")) {
-    closeActionModal();
-  }
-});
+  // Optionnel: active TMDB en collant ton token ici
+  Metadata.init({ token: "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0N2Y5YTIzZjE3OWEyYzZlNTEzYWMxZWIzNWNkNzM3ZiIsIm5iZiI6MTc3MDIxODIwMy44MTcsInN1YiI6IjY5ODM2MmRiYzBmNTIxOTI3NDMyZTk3NiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.cJGRkCLJo1vgsB2I027SFCJ91kYY4CmCsYUoePKdmmQ", language: "fr-FR" });
 
-modalVlcBtn.addEventListener("click", () => {
-  if (!modalCurrent) return;
-  const url = modalCurrent.url;
-  closeActionModal();
-  window.open(`vlc://${url}`, "_blank");
-});
-
-modalDownloadBtn.addEventListener("click", () => {
-  if (!modalCurrent) return;
-
-  const { url } = modalCurrent;
-
-  console.log("🌐 Open download link in new tab");
-  console.log("➡️ URL:", url);
-
-  // Ouverture immédiate (méthode la plus fiable IPTV)
-  window.open(url, "_blank", "noopener");
-
-  closeActionModal();
-});
-
-
-
-
+  showView("import");
+})();

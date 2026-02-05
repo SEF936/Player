@@ -2,178 +2,223 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M3U Player</title>
-  <link rel="stylesheet" href="./styles.css" />
-  <script defer src="./app.js"></script>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
-  <header class="appbar">
-    <div class="brand">
-      <div class="logo">▶</div>
-      <div class="brandText">M3U Player</div>
-    </div>
-    <div class="appbarRight">
-      <span id="topDate" class="topDate"></span>
-    </div>
-  </header>
 
-<main class="container containerFluid">
+<header class="appbar">
+  <div class="brand">
+    <div class="logo">▶</div>
+    <div class="brandText">M3U Player</div>
+  </div>
+  <div class="appbarRight">
+    <div id="topDate" class="topDate"></div>
+  </div>
+</header>
 
-    <!-- VIEW: IMPORT -->
-    <section id="viewImport" class="heroWrap">
+<main class="containerFluid">
+
+  <!-- VIEW: IMPORT -->
+  <section id="viewImport">
+    <div class="heroWrap">
       <h1 class="heroTitle">M3U Player</h1>
-      <p class="heroSubtitle">
-        Importez votre playlist M3U pour accéder à vos films,<br />
-        séries et chaînes TV
-      </p>
+      <p class="heroSubtitle">Chargez une playlist .m3u / .m3u8</p>
 
-      <div id="dropZone" class="dropzoneLarge" role="button" tabindex="0" aria-label="Zone import M3U">
-        <div class="uploadIcon" aria-hidden="true">⤴</div>
-        <div class="dzTitle">Glissez votre fichier M3U ici</div>
-        <div class="dzHint">ou cliquez pour sélectionner un fichier</div>
-        <div class="dzMeta" id="dzMeta"></div>
-
-        <input
-          id="m3uFileInput"
-          type="file"
-          accept=".m3u,.m3u8,text/plain,audio/x-mpegurl,application/vnd.apple.mpegurl"
-          hidden
-        />
+      <div id="dropzone" class="dropzoneLarge" role="button" tabindex="0">
+        <div class="uploadIcon">⬆</div>
+        <div class="dzTitle">Glisser-déposer votre fichier</div>
+        <div class="dzHint">ou cliquez pour le sélectionner</div>
+        <div class="dzMeta">Aucun identifiant requis</div>
       </div>
 
-      <div id="importStatus" class="statusLine" aria-live="polite"></div>
+      <input id="fileInput" type="file" accept=".m3u,.m3u8" hidden />
+      <div id="statusLine" class="statusLine"></div>
 
       <div class="rowCenter">
-        <button id="clearBtn" class="btnDanger">Réinitialiser</button>
+        <button id="resetBtn" class="btnGhost" type="button">Réinitialiser</button>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- VIEW: DASHBOARD -->
-    <section id="viewDashboard" class="dashMain hidden">
+  <!-- VIEW: DASH -->
+  <section id="viewDash" class="hidden">
+    <div class="dashMain">
       <div class="dashCenter">
         <div class="cards">
-          <button class="catCard" data-cat="TV" type="button">
+          <button id="tvCard" class="catCard" type="button">
             <div class="catName">TV</div>
-            <div class="catCount" id="countTV">0</div>
-            <div class="catHint">Chaînes & Live</div>
+            <div id="tvCount" class="catCount">0</div>
+            <div class="catHint">Chaînes & live</div>
           </button>
 
-          <button class="catCard" data-cat="FILMS" type="button">
+          <button id="filmsCard" class="catCard" type="button">
             <div class="catName">FILMS</div>
-            <div class="catCount" id="countFILMS">0</div>
-            <div class="catHint">VOD / Movies</div>
+            <div id="filmsCount" class="catCount">0</div>
+            <div class="catHint">Films</div>
           </button>
 
-          <button class="catCard" data-cat="SERIES" type="button">
-            <div class="catName">SERIES</div>
-            <div class="catCount" id="countSERIES">0</div>
-            <div class="catHint">Épisodes</div>
+          <button id="seriesCard" class="catCard" type="button">
+            <div class="catName">SÉRIES</div>
+            <div id="seriesCount" class="catCount">0</div>
+            <div class="catHint">Séries (regroupées)</div>
           </button>
         </div>
 
         <div class="dashFooterRow">
-          <div class="muted small" id="playlistInfo"></div>
-          <div class="dashActions">
-            <button id="backToImportBtn" class="btnGhost" type="button">← Retour</button>
-          </div>
+          <div id="dashInfo" class="muted small"></div>
+          <button id="changePlaylistBtn" class="btnGhost" type="button">Changer de playlist</button>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- VIEW: CATEGORY -->
-    <section id="viewCategory" class="hidden">
-      <header class="catHeader">
-        <div class="catHeaderLeft">
-          <button id="backBtn" class="btnGhost" type="button">← Retour</button>
-          <div class="catHeaderTitle">
-            <div id="catTitle" class="catTitle">CATÉGORIE</div>
-            <div id="catSubtitle" class="muted small">0 éléments</div>
-          </div>
+  <!-- VIEW: CATEGORY -->
+  <section id="viewCategory" class="hidden">
+    <header class="catHeader">
+      <div class="catHeaderLeft">
+        <button id="catBackBtn" class="btnGhost" type="button">← Retour</button>
+        <div class="catHeaderTitle">
+          <div id="catTitle" class="catTitle">Catégorie</div>
+          <div id="catSubtitle" class="muted small"></div>
         </div>
-
-        <div class="catHeaderRight">
-          <input id="searchInput" type="search" class="catSearch" placeholder="Rechercher..." />
-   <select id="sortSelect" class="catSelect" aria-label="Tri">
-  <option value="file" selected>Ordre du fichier</option>
-  <option value="last">Derniers ajoutés</option>
-  <option value="az">A → Z</option>
-  <option value="za">Z → A</option>
-</select>
-        </div>
-      </header>
-
-      <div class="catLayout">
-        <aside class="catSidebar">
-          <div class="catSidebarTop">
-            <div class="catSidebarTitle">Sous-catégories</div>
-          </div>
-          <div id="subcatList" class="subcatList"></div>
-        </aside>
-
-        <section class="catGridWrap">
-          <div id="grid" class="catGrid"></div>
-          <div id="emptyState" class="emptyState hidden">
-            Aucun résultat pour cette sous-catégorie / recherche.
-          </div>
-        </section>
       </div>
-    </section>
-<!-- VIEW: SERIES DETAIL -->
-<section id="viewSeriesDetail" class="hidden seriesDetail">
-  <header class="seriesTopbar">
-    <button id="seriesBackBtn" class="btnGhost" type="button">← Retour</button>
-  </header>
 
-  <div class="seriesHero">
-    <div class="seriesPoster" id="seriesPosterWrap">
-      <img id="seriesPoster" alt="" loading="lazy" />
-      <div class="posterFallback">🎬</div>
+      <div class="catHeaderRight">
+        <input id="catSearch" class="catSearch" placeholder="Rechercher…" />
+      </div>
+    </header>
+
+    <div class="catLayout">
+      <aside class="catSidebar">
+        <div class="catSidebarTitle">Sous-catégories</div>
+        <div id="subcatList" class="subcatList"></div>
+      </aside>
+
+      <section class="catGridWrap">
+        <div id="grid" class="catGrid"></div>
+        <div id="emptyState" class="emptyState hidden">Aucun résultat.</div>
+      </section>
+    </div>
+  </section>
+
+  <!-- VIEW: SERIES DETAIL -->
+  <section id="viewSeriesDetail" class="hidden seriesDetail">
+    <div class="seriesTopbar">
+      <button id="seriesBackBtn" class="btnGhost" type="button">← Retour</button>
     </div>
 
-    <div class="seriesInfo">
-      <div id="seriesTitle" class="seriesTitle">Titre</div>
-      <div id="seriesMeta" class="seriesMeta muted">0 saison · 0 épisodes</div>
-      <div id="seriesGroup" class="seriesGroup muted small">—</div>
-    </div>
-  </div>
+    <div class="detailHero">
+      <div class="detailPoster">
+        <img id="seriesPoster" alt="" loading="lazy">
+        <div class="posterFallback">🎬</div>
+      </div>
 
-  <div class="seriesSeasons">
-    <div class="sectionTitle">Saisons</div>
+      <div class="detailInfo">
+        <div id="seriesTitle" class="detailTitle">—</div>
+
+        <div class="detailMetaRow">
+          <div id="seriesMeta" class="muted small">—</div>
+        </div>
+
+        <div class="detailFacts">
+          <div class="fact"><span>Créé par :</span> <b id="seriesCreator">—</b></div>
+          <div class="fact"><span>Date :</span> <b id="seriesDate">—</b></div>
+          <div class="fact"><span>Genres :</span> <b id="seriesGenres">—</b></div>
+          <div class="fact"><span>Acteurs :</span> <b id="seriesCast">—</b></div>
+        </div>
+
+        <div class="detailPlot">
+          <div class="fact"><span>Résumé :</span></div>
+          <div id="seriesPlot" class="plotText">—</div>
+          <button id="seriesPlotToggleBtn" class="linkBtn" type="button">Lire plus</button>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sectionTitle">Saisons</h3>
     <div id="seasonTabs" class="seasonTabs"></div>
+
+    <h3 id="episodesTitle" class="sectionTitle">Épisodes</h3>
+    <div id="episodesList" class="episodesList"></div>
+  </section>
+
+  <!-- VIEW: FILM DETAIL -->
+<section id="viewFilmDetail" class="hidden filmDetail filmDetailFull">
+  <div class="filmBackdrop" id="filmBackdrop"></div>
+  <div class="filmBackdropShade"></div>
+
+  <div class="filmTopbar">
+    <button id="filmBackBtn" class="btnGhost" type="button">← Retour</button>
+    <div class="filmTopRight">
+      <button id="filmFavBtn" class="iconBtn" type="button" title="Favori">♡</button>
+    </div>
   </div>
 
-  <div class="seriesEpisodes">
-    <div id="episodesTitle" class="sectionTitle">Saison —</div>
-    <div id="episodesList" class="episodesList"></div>
+  <div class="filmHero">
+    <div class="filmLeft">
+      <div class="detailPoster filmPosterBig">
+        <img id="filmPoster" alt="" loading="lazy">
+        <div class="posterFallback">🎬</div>
+      </div>
+
+      <div class="filmStars" id="filmStars" aria-label="Note"></div>
+    </div>
+
+    <div class="filmRight">
+      <div id="filmTitle" class="filmTitleBig">—</div>
+
+      <div class="filmFactsGrid">
+        <div class="factRow"><span>Directed by:</span> <b id="filmDirector">—</b></div>
+        <div class="factRow"><span>Release date:</span> <b id="filmDate">—</b></div>
+        <div class="factRow"><span>Duration:</span> <b id="filmDuration">—</b></div>
+        <div class="factRow"><span>Genre:</span> <b id="filmGenres">—</b></div>
+        <div class="factRow"><span>Cast:</span> <b id="filmCast">—</b> <button id="filmCastToggleBtn" class="linkBtnInline" type="button">Read more</button></div>
+      </div>
+
+      <div class="filmActionsRow">
+        <button id="filmDownloadBtn" class="btnPrimary" type="button">Ouvrir le lien (download)</button>
+        <button id="filmVlcBtn" class="btnGhost" type="button">Ouvrir avec VLC</button>
+      </div>
+
+      <div class="filmPlotBlock">
+        <div id="filmPlot" class="filmPlotText">—</div>
+        <button id="filmPlotToggleBtn" class="linkBtnInline" type="button">Read more</button>
+      </div>
+    </div>
   </div>
+
+  <div class="castStrip" id="filmCastStrip"></div>
 </section>
 
-  </main>
-  <!-- ACTION MODAL -->
-<div id="actionModal" class="modalOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-  <div class="modalCard">
+
+</main>
+
+<!-- MODAL actions (TV / épisodes) -->
+<div id="actionModal" class="modalOverlay hidden">
+  <div class="modalCard" role="dialog" aria-modal="true">
     <div class="modalHeader">
-      <div id="modalTitle" class="modalTitle">Action</div>
-      <button id="modalCloseBtn" class="modalClose" type="button" aria-label="Fermer">✕</button>
+      <div class="modalTitle">Action</div>
+      <button id="modalCloseBtn" class="modalClose" type="button">✕</button>
     </div>
 
     <div class="modalBody">
       <div id="modalItemName" class="modalItemName">—</div>
       <div id="modalItemMeta" class="modalItemMeta muted small">—</div>
     </div>
-<div id="modalHint" class="modalHint muted small"></div>
-    <div class="modalActions">
-      <button id="modalDownloadBtn" class="btnPrimary" type="button">
-  Ouvrir le lien (download)
-</button>
 
+    <div class="modalActions">
+      <button id="modalDownloadBtn" class="btnPrimary" type="button">Ouvrir le lien (download)</button>
       <button id="modalVlcBtn" class="btnGhost" type="button">Ouvrir avec VLC</button>
-      <button id="modalCancelBtn" class="btnDanger" type="button">Annuler</button>
+      <button id="modalCancelBtn" class="btnDanger" type="button">Fermer</button>
     </div>
   </div>
 </div>
+
+<!-- metadata provider (TMDB optionnel) -->
+<script src="metadata.js"></script>
+<script src="app.js"></script>
 
 </body>
 </html>
