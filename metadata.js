@@ -10,7 +10,8 @@
   const API = { token:"", base:"https://api.themoviedb.org/3", img:"https://image.tmdb.org/t/p/", language:"fr-FR" };
 
   Metadata.init = ({ token, language="fr-FR" } = {}) => { API.token = token || ""; API.language = language; };
-  Metadata.isReady = () => !!API.token;
+Metadata.isReady = () => true; // proxy Netlify => token côté serveur
+
  async function get(path, params = {}) {
   const url = new URL("/.netlify/functions/tmdb", window.location.origin);
   url.searchParams.set("path", path);
