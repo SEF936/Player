@@ -23,15 +23,19 @@
     return { Authorization: `Bearer ${API.token}` };
   }
 
-  async function get(path, params = {}){
-    const url = new URL(API.base + path);
-    Object.entries(params).forEach(([k,v])=>{
-      if(v !== null && v !== undefined && v !== "") url.searchParams.set(k, v);
-    });
-    const res = await fetch(url.toString(), { headers: headers() });
-    if(!res.ok) throw new Error(`TMDB ${res.status}`);
-    return res.json();
-  }
+ async function get(path, params = {}) {
+  const url = new URL("/.netlify/functions/tmdb", window.location.origin);
+  url.searchParams.set("path", path);
+
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== null && v !== undefined && v !== "") url.searchParams.set(k, v);
+  });
+
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`TMDB proxy ${res.status}`);
+  return res.json();
+}
+
 
   function cleanTitle(t){
     let s = String(t||"").trim();
