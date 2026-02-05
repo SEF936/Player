@@ -3,25 +3,7 @@
 */
 
 (function(){
-  const API = {
-    token: "",
-    base: "https://api.themoviedb.org/3",
-    img: "https://image.tmdb.org/t/p/",
-    language: "fr-FR",
-  };
 
-  const Metadata = {};
-
-  Metadata.init = ({ token, language="fr-FR" } = {}) => {
-    API.token = token || "";
-    API.language = language;
-  };
-
-  Metadata.isReady = () => !!API.token;
-
-  function headers(){
-    return { Authorization: `Bearer ${API.token}` };
-  }
 
  async function get(path, params = {}) {
   const url = new URL("/.netlify/functions/tmdb", window.location.origin);
@@ -32,7 +14,11 @@
   });
 
   const res = await fetch(url.toString());
-  if (!res.ok) throw new Error(`TMDB proxy ${res.status}`);
+ if (!res.ok) {
+  const t = await res.text().catch(() => "");
+  console.warn("TMDB proxy error", res.status, "path=", path, "resp=", t);
+  throw new Error(`TMDB proxy ${res.status}`);
+}
   return res.json();
 }
 

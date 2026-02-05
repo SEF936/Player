@@ -12,17 +12,19 @@ export default async (req) => {
       return new Response(JSON.stringify({ error: "Invalid path" }), { status: 400 });
     }
 
-    // Allowlist simple (évite que n'importe qui appelle n'importe quel endpoint)
-    const allowed = [
-      "/search/movie",
-      "/search/tv",
-      "/movie/",
-      "/tv/",
-    ];
-    const ok = allowed.some(a => (a.endsWith("/") ? path.startsWith(a) : path === a));
-    if (!ok) {
-      return new Response(JSON.stringify({ error: "Path not allowed" }), { status: 403 });
-    }
+// Allowlist (endpoints utilisés par l'app)
+const allowed = [
+  "/search/movie",
+  "/search/tv",
+  "/movie/",      // /movie/{id}
+  "/tv/",         // /tv/{id} et /tv/{id}/season/.../episode/...
+];
+
+const ok = allowed.some((a) => (a.endsWith("/") ? path.startsWith(a) : path === a));
+if (!ok) {
+  return { statusCode: 403, body: JSON.stringify({ error: "Path not allowed", path }) };
+}
+
 
     // Rebuild TMDB URL
     const tmdbUrl = new URL("https://api.themoviedb.org/3" + path);
