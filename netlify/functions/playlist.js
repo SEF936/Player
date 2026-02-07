@@ -20,7 +20,7 @@ exports.handler = async (event) => {
       return { statusCode: 500, body: "Missing env BASE_URL" };
     }
 
-    const u = new URL(BASE.replace(/\/+$/,"") + "/get.php");
+    const u = new URL(BASE.replace(/\/+$/, "") + "/get.php");
     u.searchParams.set("username", username);
     u.searchParams.set("password", password);
     u.searchParams.set("type", "m3u_plus");
@@ -29,7 +29,9 @@ exports.handler = async (event) => {
     const url = u.toString();
     console.log("Fetching M3U:", url.replace(password, "******"));
 
-    const res = await fetch(url, { headers: { "User-Agent": "netlify-playlist-fetch" } });
+    const res = await fetch(url, {
+      headers: { "User-Agent": "netlify-playlist-fetch" },
+    });
     const text = await res.text();
 
     if (!res.ok) {
@@ -53,9 +55,7 @@ exports.handler = async (event) => {
       },
       body: gz.toString("base64"),
     };
-
   } catch (e) {
     return { statusCode: 500, body: String(e?.message || e) };
   }
 };
-

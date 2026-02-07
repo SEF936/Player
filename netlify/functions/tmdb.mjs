@@ -3,28 +3,36 @@ export default async (req) => {
   try {
     const TMDB_TOKEN = Netlify.env.get("TMDB_TOKEN"); // Netlify Functions runtime env :contentReference[oaicite:2]{index=2}
     if (!TMDB_TOKEN) {
-      return new Response(JSON.stringify({ error: "TMDB_TOKEN missing" }), { status: 500 });
+      return new Response(JSON.stringify({ error: "TMDB_TOKEN missing" }), {
+        status: 500,
+      });
     }
 
     const url = new URL(req.url);
     const path = url.searchParams.get("path"); // ex: /search/movie
     if (!path || !path.startsWith("/")) {
-      return new Response(JSON.stringify({ error: "Invalid path" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Invalid path" }), {
+        status: 400,
+      });
     }
 
-// Allowlist (endpoints utilisés par l'app)
-const allowed = [
-  "/search/movie",
-  "/search/tv",
-  "/movie/",      // /movie/{id}
-  "/tv/",         // /tv/{id} et /tv/{id}/season/.../episode/...
-];
+    // Allowlist (endpoints utilisés par l'app)
+    const allowed = [
+      "/search/movie",
+      "/search/tv",
+      "/movie/", // /movie/{id}
+      "/tv/", // /tv/{id} et /tv/{id}/season/.../episode/...
+    ];
 
-const ok = allowed.some((a) => (a.endsWith("/") ? path.startsWith(a) : path === a));
-if (!ok) {
-  return { statusCode: 403, body: JSON.stringify({ error: "Path not allowed", path }) };
-}
-
+    const ok = allowed.some((a) =>
+      a.endsWith("/") ? path.startsWith(a) : path === a,
+    );
+    if (!ok) {
+      return {
+        statusCode: 403,
+        body: JSON.stringify({ error: "Path not allowed", path }),
+      };
+    }
 
     // Rebuild TMDB URL
     const tmdbUrl = new URL("https://api.themoviedb.org/3" + path);
@@ -51,6 +59,8 @@ if (!ok) {
       },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e?.message || e) }), { status: 500 });
+    return new Response(JSON.stringify({ error: String(e?.message || e) }), {
+      status: 500,
+    });
   }
 };
