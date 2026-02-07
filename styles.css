@@ -89,7 +89,7 @@ body{
   text-align:center;
 }
 .heroTitle{
-  margin: 0;
+  margin: 2rem;
   font-size:64px;
   line-height:1.05;
   color: var(--accent);
@@ -725,4 +725,10 @@ body{
 @media (max-width: 520px){
   .loginForm{ width: 100%; }
   .loginInput{ padding: 12px; }
+}
+
+/* TV cards only: logos en contain */
+.mediaCard .poster img:not(.filmPosterImg):not(.seriesPosterImg){
+  object-fit: contain;
+  background: rgba(0,0,0,.15); /* optionnel, évite le vide visuel */
 }

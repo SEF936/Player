@@ -38,6 +38,11 @@ function requireEl(el, id){
 const $ = (s) => document.querySelector(s);
 const BATCH = 30;
 
+
+const refreshAllBtn = $("#refreshAllBtn");
+const lastUpdatedEl = $("#lastUpdated");
+const logoutBtn = $("#logoutBtn");
+
 // Views
 const viewLogin = $("#viewLogin");
 const viewDash = $("#viewDash");
@@ -454,6 +459,23 @@ function showCardHtml(sh){
   `;
 }
 
+function cardHtml(it){
+  const name = it.name || "Élément";
+  const logo = it.logo || ""; // tvg-logo (fallback)
+  const meta = it.groupTitle || "TV";
+
+  return `
+    <div class="mediaCard" data-idx="${it.__idx}">
+      <div class="poster ${logo ? "" : "noposter"}">
+        ${logo ? `<img src="${escapeHtml(logo)}" alt="" loading="lazy"
+          onerror="this.remove(); this.closest('.poster')?.classList.add('noposter');">` : ""}
+        <div class="posterFallback">▶</div>
+      </div>
+      <div class="mediaTitle">${escapeHtml(name)}</div>
+      <div class="muted small">${escapeHtml(meta)}</div>
+    </div>
+  `;
+}
 
 
 function renderMore(){
@@ -623,27 +645,23 @@ function renderCategoryContent(){
 
   // build list
 if (activeCategory === "SERIES") {
-  const scopedEpisodes = applyFilters(itemsCat);
+  // ✅ 1) Sidebar toujours basée sur TOUTES les séries (pas filtrées)
+  const allShows = buildShows(itemsCat);
+  renderSubcats(allShows, allShows.length);
 
-  // shows = séries uniques dans l’ordre playlist
-  const shows = buildShows(scopedEpisodes);
+  // ✅ 2) Filtre appliqué uniquement à la grille
+  let scoped = allShows;
 
-  // Sidebar: TOUT = nb de séries uniques, sous-cats = nb de séries par group-title
-  renderSubcats(shows, shows.length);
-
-  // Appliquer filtre sous-cat sur les shows (pas sur les épisodes)
   if (activeSubcat !== "__ALL__") {
-    renderList = shows.filter(sh => ((sh.groupTitle||"Autres").trim()||"Autres") === activeSubcat);
-  } else {
-    renderList = shows;
+    scoped = scoped.filter(sh => ((sh.groupTitle || "Autres").trim() || "Autres") === activeSubcat);
   }
 
-  // Recherche côté shows (au cas où) : filtrer par nom de série
-  const q = (searchQuery||"").trim().toLowerCase();
+  const q = (searchQuery || "").trim().toLowerCase();
   if (q) {
-    renderList = renderList.filter(sh => (sh.showName||"").toLowerCase().includes(q));
+    scoped = scoped.filter(sh => (sh.showName || "").toLowerCase().includes(q));
   }
 
+  renderList = scoped;
   catSubtitle.textContent = `${renderList.length} série(s)`;
 } else {
   // TV / FILMS inchangé
@@ -652,6 +670,7 @@ if (activeCategory === "SERIES") {
   renderList = applyFilters(itemsCat);
   catSubtitle.textContent = `${renderList.length} élément(s)`;
 }
+
 
 
   if (!renderList.length) {
@@ -959,7 +978,14 @@ function setBusyLogin(b){
 }
 
 function bindLogin(){
-  loadLoginSession();
+  // Pré-remplissage si session existante
+  try{
+    const s = JSON.parse(localStorage.getItem("iptv_session") || "null");
+    if(s){
+      if(loginPlaylistName && s.playlistName) loginPlaylistName.value = s.playlistName;
+      if(loginUser && s.username) loginUser.value = s.username;
+    }
+  }catch{}
 
   const run = async ()=>{
     const plName = (loginPlaylistName?.value || "").trim();
@@ -975,12 +1001,17 @@ function bindLogin(){
       return;
     }
 
-    setBusyLogin(true);
-    saveLoginSession();
+    if(loginBtn) loginBtn.disabled = true;
 
     try{
       setStatus("⏳ Téléchargement de la playlist…");
+
       const text = await fetchPlaylistViaNetlify(user, pass);
+
+      // debug utile
+      console.log("📄 Taille playlist (chars):", text.length);
+      const bytes = new TextEncoder().encode(text).length;
+      console.log("📦 Taille playlist (Mo):", (bytes / 1024 / 1024).toFixed(2));
 
       setStatus("⏳ Analyse de la playlist…");
       allItems = parseM3U(text);
@@ -988,14 +1019,22 @@ function bindLogin(){
       setStatus("⏳ Chargement des catégories…");
       updateCounts();
 
+      // Sauvegarde session (persistante)
+      localStorage.setItem("iptv_session", JSON.stringify({
+        playlistName: plName,
+        username: user,
+        password: pass,
+        updatedAt: Date.now()
+      }));
+
       setStatus(`Playlist chargée ✅ (${allItems.length} éléments)`);
       showView("dash");
     }catch(e){
       console.error(e);
-      setStatus(`❌ Échec: ${e?.message || e}`);
+      setStatus(`❌ Échec du chargement (${e?.message || e})`);
     }finally{
-      setBusyLogin(false);
-      if(loginPass) loginPass.value = ""; // on vide le champ password
+      if(loginBtn) loginBtn.disabled = false;
+      if(loginPass) loginPass.value = ""; // on vide toujours le champ password
     }
   };
 
@@ -1009,10 +1048,105 @@ function bindLogin(){
 }
 
 
+
 // Init
-(function init(){
+(async function init(){
   setTopDate();
   bindLogin();
+  bindDashActions?.(); // si tu as bien ajouté refresh / logout
 
+  // Tentative auto-login
+  try{
+    const s = JSON.parse(localStorage.getItem("iptv_session") || "null");
+    if(s?.username && s?.password){
+      setStatus("⏳ Reconnexion automatique…");
+
+      const text = await fetchPlaylistViaNetlify(s.username, s.password);
+
+      setStatus("⏳ Analyse de la playlist…");
+      allItems = parseM3U(text);
+
+      setStatus("⏳ Chargement des catégories…");
+      updateCounts();
+
+      if(typeof setLastUpdated === "function"){
+        setLastUpdated(s.updatedAt || Date.now());
+      }
+
+      setStatus(`Playlist chargée ✅ (${allItems.length} éléments)`);
+      showView("dash");
+      return;
+    }
+  }catch(e){
+    console.warn("Auto-login failed", e);
+  }
+
+  // Fallback : afficher login
   showView("login");
 })();
+
+function setLastUpdated(ts){
+  if(!lastUpdatedEl) return;
+  const d = new Date(ts);
+  lastUpdatedEl.textContent = `Dernière mise à jour : ${d.toLocaleString("fr-FR")}`;
+  try{
+    const s = JSON.parse(localStorage.getItem("iptv_session") || "null") || {};
+    s.updatedAt = ts;
+    localStorage.setItem("iptv_session", JSON.stringify(s));
+  }catch{}
+}
+
+
+async function refreshPlaylist(){
+  const s = JSON.parse(localStorage.getItem("iptv_session") || "null");
+  if(!s?.username || !s?.password){
+    setStatus("⚠️ Session manquante. Reconnecte-toi.");
+    showView("login");
+    return;
+  }
+
+  try{
+    setStatus("⏳ Rafraîchissement de la playlist…");
+    if(refreshAllBtn) refreshAllBtn.disabled = true;
+
+    const text = await fetchPlaylistViaNetlify(s.username, s.password);
+
+    setStatus("⏳ Analyse de la playlist…");
+    allItems = parseM3U(text);
+
+    setStatus("⏳ Mise à jour des catégories…");
+    updateCounts();
+    setLastUpdated(Date.now());
+
+    // si l'utilisateur est dans une catégorie, on re-render
+    if(activeCategory) renderCategoryContent();
+
+    setStatus("✅ Playlist rafraîchie.");
+  }catch(e){
+    console.error(e);
+    setStatus(`❌ Refresh échoué: ${e?.message || e}`);
+  }finally{
+    if(refreshAllBtn) refreshAllBtn.disabled = false;
+  }
+}
+
+
+function logout(){
+  localStorage.removeItem("iptv_session");
+  allItems = [];
+  activeCategory = null;
+  activeSubcat = "__ALL__";
+  searchQuery = "";
+  setStatus("Déconnecté.");
+  showView("login");
+}
+
+function bindDashActions(){
+  refreshAllBtn?.addEventListener("click", refreshPlaylist);
+  logoutBtn?.addEventListener("click", logout);
+
+  // "Changer de playlist" = logout + retour login
+  changePlaylistBtn.addEventListener("click", ()=>{
+    logout();
+  });
+}

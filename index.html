@@ -24,11 +24,9 @@
 <section id="viewLogin">
   <div class="heroWrap">
     <h1 class="heroTitle">M3U Player</h1>
-    <p class="heroSubtitle">Connexion via identifiants</p>
 
     <!-- zone style dropzoneLarge réutilisée comme "login card" -->
     <div class="dropzoneLarge loginBox">
-      <div class="uploadIcon">🔐</div>
       <div class="dzTitle">Se connecter à une playlist</div>
       <div class="dzHint">Saisissez vos informations pour télécharger la playlist</div>
 
@@ -80,10 +78,19 @@
           </button>
         </div>
 
-        <div class="dashFooterRow">
-          <div id="dashInfo" class="muted small"></div>
-          <button id="changePlaylistBtn" class="btnGhost" type="button">Changer de playlist</button>
-        </div>
+<div class="dashFooterRow">
+  <div>
+    <div id="dashInfo" class="muted small"></div>
+    <div id="lastUpdated" class="muted small"></div>
+  </div>
+
+  <div class="dashActions">
+    <button id="refreshAllBtn" class="btnPrimary" type="button">Rafraîchir</button>
+    <button id="logoutBtn" class="btnGhost" type="button">Déconnexion</button>
+    <button id="changePlaylistBtn" class="btnGhost" type="button">Changer de playlist</button>
+  </div>
+</div>
+
       </div>
     </div>
   </section>
@@ -231,7 +238,6 @@
 </div>
 
 <!-- metadata provider (TMDB optionnel) -->
- <script src="fetchApi"></script>
 <script src="metadata.js"></script>
 <script src="app.js"></script>
 
