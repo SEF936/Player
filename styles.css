@@ -786,9 +786,5 @@ body{
   .catSidebar{ display:none !important; }
   .catLayout{ grid-template-columns: 1fr !important; }
 }
-@media (max-width: 520px){
-  .catHeader{ flex-wrap: nowrap; }
-  .catHeaderRight{ width: 100%; }
-  .catSearch{ width: 100%; }
-}
+
 
