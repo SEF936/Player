@@ -675,3 +675,54 @@ body{
   .filmPosterBig{ width: 220px; }
   .filmActionsRow button{ width: 100%; }
 }
+
+
+/* --- Login (réutilise le look Import) --- */
+.loginBox{
+  cursor: default;          /* enlève le comportement "dropzone clickable" */
+}
+
+.loginForm{
+  margin-top: 14px;
+  display: grid;
+  gap: 12px;
+  width: min(520px, 92%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.loginField{
+  display: grid;
+  gap: 6px;
+  text-align: left;
+}
+
+.loginLabel{
+  font-weight: 800;
+  opacity: .9;
+}
+
+.loginInput{
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(10,12,16,.55);
+  color: inherit;
+  outline: none;
+}
+
+.loginInput:focus{
+  border-color: rgba(255,255,255,.22);
+}
+
+.wideBtn{
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Responsive: garde la cohérence */
+@media (max-width: 520px){
+  .loginForm{ width: 100%; }
+  .loginInput{ padding: 12px; }
+}
