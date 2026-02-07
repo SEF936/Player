@@ -39,17 +39,19 @@ const $ = (s) => document.querySelector(s);
 const BATCH = 30;
 
 // Views
-const viewImport = $("#viewImport");
+const viewLogin = $("#viewLogin");
 const viewDash = $("#viewDash");
 const viewCategory = $("#viewCategory");
 const viewSeriesDetail = $("#viewSeriesDetail");
 const viewFilmDetail = $("#viewFilmDetail");
 
-// Import UI
-const dropzone = $("#dropzone");
-const fileInput = $("#fileInput");
+// Login UI
+const loginPlaylistName = $("#loginPlaylistName");
+const loginUser = $("#loginUser");
+const loginPass = $("#loginPass");
+const loginBtn = $("#loginBtn");
 const statusLine = $("#statusLine");
-const resetBtn = $("#resetBtn");
+
 
 // Appbar
 const topDate = $("#topDate");
@@ -149,16 +151,30 @@ function setStatus(msg){
 }
 
 function showView(name){
-  const map = { import:viewImport, dash:viewDash, category:viewCategory, seriesDetail:viewSeriesDetail, filmDetail:viewFilmDetail };
+  const map = {
+    login: viewLogin,
+    dash: viewDash,
+    category: viewCategory,
+    seriesDetail: viewSeriesDetail,
+    filmDetail: viewFilmDetail
+  };
   Object.entries(map).forEach(([k,el]) => { if(el) el.classList.toggle("hidden", k !== name); });
   history.pushState({ view:name }, "", `#${name}`);
 }
 
+
 window.addEventListener("popstate", (e)=>{
-  const v = e.state?.view || "import";
-  const map = { import:viewImport, dash:viewDash, category:viewCategory, seriesDetail:viewSeriesDetail, filmDetail:viewFilmDetail };
+  const v = e.state?.view || "login";
+  const map = {
+    login: viewLogin,
+    dash: viewDash,
+    category: viewCategory,
+    seriesDetail: viewSeriesDetail,
+    filmDetail: viewFilmDetail
+  };
   Object.entries(map).forEach(([k,el]) => { if(el) el.classList.toggle("hidden", k !== v); });
 });
+
 
 function escapeHtml(s){
   return String(s||"")
@@ -902,49 +918,101 @@ tvCard.addEventListener("click", ()=>openCategory("TV"));
 filmsCard.addEventListener("click", ()=>openCategory("FILMS"));
 seriesCard.addEventListener("click", ()=>openCategory("SERIES"));
 
-changePlaylistBtn.addEventListener("click", ()=>showView("import"));
-resetBtn.addEventListener("click", ()=>{
-  allItems = [];
-  setStatus("Réinitialisé.");
-  showView("import");
+changePlaylistBtn.addEventListener("click", ()=>{
+  setStatus("");
+  showView("login");
 });
 
-// Import bind
-function bindImport(){
-  const handleFile = async (file)=>{
-    if(!file) return;
-    setStatus(`Lecture: ${file.name}…`);
+async function fetchPlaylistViaNetlify(username, password){
+  const res = await fetch("/.netlify/functions/playlist", {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({ username, password })
+  });
+  const text = await res.text();
+  if(!res.ok){
+    console.error("❌ playlist function error", res.status, text);
+    throw new Error(`Erreur fetch (${res.status})`);
+  }
+  return text;
+}
+
+function saveLoginSession(){
+  const sess = {
+    playlistName: (loginPlaylistName?.value || "").trim(),
+    username: (loginUser?.value || "").trim()
+  };
+  localStorage.setItem("iptv_session", JSON.stringify(sess));
+}
+
+function loadLoginSession(){
+  try{
+    const s = JSON.parse(localStorage.getItem("iptv_session") || "null");
+    if(!s) return;
+    if(loginPlaylistName && s.playlistName) loginPlaylistName.value = s.playlistName;
+    if(loginUser && s.username) loginUser.value = s.username;
+  }catch{}
+}
+
+function setBusyLogin(b){
+  if(loginBtn) loginBtn.disabled = !!b;
+}
+
+function bindLogin(){
+  loadLoginSession();
+
+  const run = async ()=>{
+    const plName = (loginPlaylistName?.value || "").trim();
+    const user = (loginUser?.value || "").trim();
+    const pass = (loginPass?.value || "").trim();
+
+    if(!plName){
+      setStatus("⚠️ Merci de renseigner un nom de playlist.");
+      return;
+    }
+    if(!user || !pass){
+      setStatus("⚠️ User et password requis.");
+      return;
+    }
+
+    setBusyLogin(true);
+    saveLoginSession();
+
     try{
-      const text = await file.text();
+      setStatus("⏳ Téléchargement de la playlist…");
+      const text = await fetchPlaylistViaNetlify(user, pass);
+
+      setStatus("⏳ Analyse de la playlist…");
       allItems = parseM3U(text);
+
+      setStatus("⏳ Chargement des catégories…");
       updateCounts();
+
       setStatus(`Playlist chargée ✅ (${allItems.length} éléments)`);
       showView("dash");
     }catch(e){
-      setStatus(`Erreur: ${e?.message || e}`);
       console.error(e);
+      setStatus(`❌ Échec: ${e?.message || e}`);
+    }finally{
+      setBusyLogin(false);
+      if(loginPass) loginPass.value = ""; // on vide le champ password
     }
   };
 
-  dropzone.addEventListener("click", ()=>fileInput.click());
-  dropzone.addEventListener("dragover", (e)=>{ e.preventDefault(); dropzone.classList.add("dragover"); });
-  dropzone.addEventListener("dragleave", ()=>dropzone.classList.remove("dragover"));
-  dropzone.addEventListener("drop", (e)=>{
-    e.preventDefault();
-    dropzone.classList.remove("dragover");
-    handleFile(e.dataTransfer.files?.[0]);
-  });
+  loginBtn?.addEventListener("click", run);
 
-  fileInput.addEventListener("change", (e)=>{
-    handleFile(e.target.files?.[0]);
-    e.target.value = "";
+  [loginPlaylistName, loginUser, loginPass].forEach(el=>{
+    el?.addEventListener("keydown", (ev)=>{
+      if(ev.key === "Enter") run();
+    });
   });
 }
+
 
 // Init
 (function init(){
   setTopDate();
-  bindImport();
+  bindLogin();
 
-  showView("import");
+  showView("login");
 })();

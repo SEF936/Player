@@ -20,27 +20,43 @@
 
 <main class="containerFluid">
 
-  <!-- VIEW: IMPORT -->
-  <section id="viewImport">
-    <div class="heroWrap">
-      <h1 class="heroTitle">M3U Player</h1>
-      <p class="heroSubtitle">Chargez une playlist .m3u / .m3u8</p>
+<!-- VIEW: LOGIN -->
+<section id="viewLogin">
+  <div class="heroWrap">
+    <h1 class="heroTitle">M3U Player</h1>
+    <p class="heroSubtitle">Connexion via identifiants (fetch Netlify)</p>
 
-      <div id="dropzone" class="dropzoneLarge" role="button" tabindex="0">
-        <div class="uploadIcon">⬆</div>
-        <div class="dzTitle">Glisser-déposer votre fichier</div>
-        <div class="dzHint">ou cliquez pour le sélectionner</div>
-        <div class="dzMeta">Aucun identifiant requis</div>
+    <!-- zone style dropzoneLarge réutilisée comme "login card" -->
+    <div class="dropzoneLarge loginBox">
+      <div class="uploadIcon">🔐</div>
+      <div class="dzTitle">Se connecter à une playlist</div>
+      <div class="dzHint">Saisissez vos informations pour télécharger la playlist</div>
+
+      <div class="loginForm">
+        <label class="loginField">
+          <span class="loginLabel">Nom de playlist</span>
+          <input id="loginPlaylistName" class="loginInput" type="text" placeholder="Ex: Maison" autocomplete="off" />
+        </label>
+
+        <label class="loginField">
+          <span class="loginLabel">User</span>
+          <input id="loginUser" class="loginInput" type="text" placeholder="user" autocomplete="username" />
+        </label>
+
+        <label class="loginField">
+          <span class="loginLabel">Password</span>
+          <input id="loginPass" class="loginInput" type="password" placeholder="password" autocomplete="current-password" />
+        </label>
+
+        <button id="loginBtn" class="btnPrimary wideBtn" type="button">Charger la playlist</button>
       </div>
 
-      <input id="fileInput" type="file" accept=".m3u,.m3u8" hidden />
-      <div id="statusLine" class="statusLine"></div>
-
-      <div class="rowCenter">
-        <button id="resetBtn" class="btnGhost" type="button">Réinitialiser</button>
-      </div>
+      <div class="dzMeta">Les identifiants restent côté serveur (Netlify Function).</div>
     </div>
-  </section>
+
+    <div id="statusLine" class="statusLine"></div>
+  </div>
+</section>
 
   <!-- VIEW: DASH -->
   <section id="viewDash" class="hidden">
@@ -217,6 +233,7 @@
 </div>
 
 <!-- metadata provider (TMDB optionnel) -->
+ <script src="fetchApi"></script>
 <script src="metadata.js"></script>
 <script src="app.js"></script>
 
