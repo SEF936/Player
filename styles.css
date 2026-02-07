@@ -779,3 +779,16 @@ body{
   /* Exemple si tu as .categoryLayout : */
   /* .categoryLayout{ grid-template-columns: 1fr !important; } */
 }
+
+/* Force le mode dropdown + pleine largeur en vrai mobile */
+@media (max-width: 520px){
+  .mobileSubcatBar{ display:block !important; }
+  .catSidebar{ display:none !important; }
+  .catLayout{ grid-template-columns: 1fr !important; }
+}
+@media (max-width: 520px){
+  .catHeader{ flex-wrap: nowrap; }
+  .catHeaderRight{ width: 100%; }
+  .catSearch{ width: 100%; }
+}
+
