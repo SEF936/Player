@@ -135,7 +135,7 @@
 .filmBackdrop{
   position:absolute;
   inset: 0 0 auto 0;
-  height: 360px;
+  height: 540px;
   background-size: cover;
   background-position: center;
   opacity: .55;
@@ -144,7 +144,7 @@
 .filmBackdropShade{
   position:absolute;
   inset:0 0 auto 0;
-  height: 360px;
+  height: 540px;
   background: linear-gradient(to bottom, rgba(0,0,0,.25), rgba(0,0,0,.85) 70%, rgba(7,9,12,1));
   pointer-events:none;
 }
@@ -337,7 +337,7 @@
 .filmBackdrop{
   position:absolute;
   inset: 0 0 auto 0;
-  height: 360px;
+  height: 540px;
   background-size: cover;
   background-position: center;
   opacity: .55;
@@ -347,7 +347,7 @@
 .filmBackdropShade{
   position:absolute;
   inset:0 0 auto 0;
-  height: 360px;
+  height: 540px;
   background: linear-gradient(to bottom, rgba(0,0,0,.22), rgba(0,0,0,.85) 70%, rgba(7,9,12,1));
   pointer-events:none;
 }
@@ -375,6 +375,7 @@
   cursor:pointer;
   font-size: 18px;
   font-weight: 950;
+  margin-right: 12px;
 }
 
 /* HERO layout */
@@ -388,6 +389,7 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  padding: 0 1rem
 }
 
 /* Left column */
@@ -568,7 +570,7 @@
    ========================= */
 
 @media (max-width: 900px){
-  .filmBackdrop, .filmBackdropShade{ height: 280px; }
+  .filmBackdrop, .filmBackdropShade{ height: 470px; }
   .filmHeroNew{ grid-template-columns: 240px 1fr; gap: 16px; }
   .filmTitleBig{ font-size: 30px; }
   .factRow{ grid-template-columns: minmax(110px, 140px) 1fr auto; }
