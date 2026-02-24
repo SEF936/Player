@@ -41,7 +41,7 @@ function openTvPage() {
     onBack: () => show("viewDash"),
     onOpenFilm: null,
     onOpenTvItem: (it) => {
-      window.open(it.url, "_blank", "noopener");
+      window.open(it?.url, "_blank", "noopener");
     },
   });
 
@@ -85,6 +85,9 @@ function openFilmDetailPage() {
     setStatus,
     film: state.currentFilm,
     onBack: () => show("viewCategory"),
+    onPlay: (film) => {
+      window.open(film?.url, "_blank", "noopener");
+    },
   });
   show("viewFilmDetail");
 }
