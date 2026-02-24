@@ -4,20 +4,7 @@
   display:flex;
   flex-direction:column;
   align-items:center;
-  padding-top: 72px;
   text-align:center;
-}
-.heroTitle{
-  margin: 2rem;
-  font-size:64px;
-  line-height:1.05;
-  color: var(--accent);
-}
-.heroSubtitle{
-  margin: 16px 0 34px;
-  color: var(--muted);
-  font-size:20px;
-  line-height:1.5;
 }
 
 .dropzoneLarge{
@@ -33,18 +20,8 @@
 }
 .dropzoneLarge:hover{ border-color: rgba(255,122,24,.35); background: rgba(15,19,24,.72); }
 .dropzoneLarge.dragover{ border-color: rgba(255,122,24,.75); background: rgba(255,122,24,.06); }
-.uploadIcon{
-  width:64px; height:64px;
-  border-radius:999px;
-  display:grid; place-items:center;
-  margin: 0 auto 18px;
-  font-size:28px;
-  color: var(--accent);
-  background: rgba(255,122,24,.13);
-  border: 1px solid rgba(255,122,24,.22);
-}
+
 .dzTitle{ font-size:22px; font-weight:950; margin-bottom: 6px; }
-.dzHint{ color: var(--muted); font-size:14px; }
 .dzMeta{ margin-top: 12px; color: var(--muted); font-size:12px; }
 
 .loginBox{ cursor: default; }
@@ -72,8 +49,6 @@
 
 @media (max-width: 900px){
   .heroWrap{ padding-top: 46px; }
-  .heroTitle{ font-size: 40px; }
-  .heroSubtitle{ font-size: 16px; margin: 12px 0 22px; }
   .dropzoneLarge{ padding: 26px 14px; border-radius: 16px; }
   .uploadIcon{ width:54px; height:54px; font-size:24px; }
   .dzTitle{ font-size: 18px; }

@@ -2,6 +2,7 @@
 import { state } from "../state.js";
 import { Metadata } from "../services/metadata.js";
 import { show } from "../router.js";
+import { openInVlc } from "../utils/externalPlayer.js";
 
 function esc(s){
   return String(s||"")
@@ -97,7 +98,7 @@ export async function renderFilmDetail(el, { setStatus, onBackView = "viewCatego
   // actions
   el.querySelector("#backBtn").onclick = ()=> show(onBackView);
   el.querySelector("#filmDownloadBtn").onclick = ()=> window.open(it.url, "_blank", "noopener");
-  el.querySelector("#filmVlcBtn").onclick = ()=> window.open(`vlc://${it.url}`, "_blank");
+  el.querySelector("#filmVlcBtn").onclick = ()=> openInVlc(it.url);
   el.querySelector("#filmPlayBtn").onclick = ()=> window.open(it.url, "_blank", "noopener"); // (player intégré ensuite)
 
   const plotEl = el.querySelector("#filmPlot");

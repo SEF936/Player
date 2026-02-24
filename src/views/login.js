@@ -6,13 +6,9 @@ import { show } from "../router.js";
 export function renderLogin(el, { setStatus, onLoaded }){
   el.innerHTML = `
     <div class="heroWrap">
-      <h1 class="heroTitle">M3U Player</h1>
-      <p class="heroSubtitle">Connexion via identifiants</p>
 
       <div class="dropzoneLarge loginBox">
-        <div class="uploadIcon">🔐</div>
         <div class="dzTitle">Se connecter à une playlist</div>
-        <div class="dzHint">Téléchargement via Netlify</div>
 
         <div class="loginForm">
           <label class="loginField">
