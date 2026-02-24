@@ -1,0 +1,75 @@
+:root{
+  --bg:#07090c;
+  --text:#e9eef5;
+  --muted:#95a3b3;
+  --border2:rgba(255,255,255,.08);
+  --accent:#ff7a18;
+  --danger:#ff4d4d;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  color:var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+  background:
+    radial-gradient(900px 450px at 50% 20%, rgba(255,122,24,.13), rgba(0,0,0,0)),
+    radial-gradient(1200px 600px at 10% 0%, rgba(76,141,255,.08), rgba(0,0,0,0)),
+    var(--bg);
+}
+
+.hidden{ display:none !important; }
+.muted{ color:var(--muted); }
+.small{ font-size:12px; }
+
+.btnGhost,.btnPrimary,.btnDanger{
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor:pointer;
+  font-weight: 950;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(15,19,24,.60);
+  color: var(--text);
+}
+.btnGhost:hover{ border-color: rgba(255,122,24,.35); }
+.btnPrimary{
+  border-color: rgba(255,122,24,.45);
+  background: rgba(255,122,24,.14);
+}
+.btnPrimary:hover{ border-color: rgba(255,122,24,.75); background: rgba(255,122,24,.20); }
+.btnDanger{
+  border-color: rgba(255,77,77,.35);
+  background: rgba(255,77,77,.10);
+  color: var(--danger);
+}
+
+.linkBtn,
+.linkBtnInline{
+  border:0;
+  background:transparent;
+  color: var(--accent);
+  font-weight: 950;
+  cursor:pointer;
+}
+
+.linkBtn{
+  margin-top: 8px;
+  padding: 0;
+}
+
+.linkBtnInline{
+  padding: 0 0 0 6px;
+}
+
+.iconBtn{
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(15,19,24,.55);
+  color: var(--text);
+  cursor:pointer;
+  font-size: 18px;
+  font-weight: 950;
+}
