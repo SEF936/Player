@@ -1,4 +1,4 @@
-import { state } from "../state.js";
+﻿import { state } from "../state.js";
 import { buildShows } from "../utils/series.js";
 import { hydrateSeriesPosters } from "../services/seriesPosters.js";
 
@@ -9,46 +9,81 @@ export function renderSeries(el, { setStatus, onBack, onOpenShow }) {
   el.innerHTML = `
     <header class="catHeader">
       <div class="catHeaderLeft">
-        <button class="btnGhost" type="button" data-role="back">← Retour</button>
+        <button class="btnGhost" type="button" data-role="back">&larr; Retour</button>
         <div class="catHeaderTitle">
-          <div class="catTitle">SÉRIES</div>
-          <div class="muted small">${shows.length} série(s)</div>
+          <div class="catTitle">S&Eacute;RIES</div>
+          <div class="muted small">${shows.length} s&eacute;rie(s)</div>
         </div>
       </div>
       <div class="catHeaderRight">
-        <input class="catSearch" data-role="search" placeholder="Rechercher…">
+        <div class="catSearchWrap" data-role="search-wrap">
+          <button
+            class="catSearchToggle"
+            data-role="search-toggle"
+            type="button"
+            aria-label="Ouvrir la recherche"
+            aria-expanded="false"
+          >
+            🔍
+          </button>
+          <input class="catSearch" data-role="search" placeholder="Rechercher...">
+        </div>
       </div>
     </header>
 
+    <div class="mobileSubcatBar">
+      <select
+        class="subcatSelect"
+        data-role="subcat-select"
+        aria-label="Sous-cat&eacute;gorie S&eacute;ries"
+      >
+        <option value="__ALL__">TOUT</option>
+      </select>
+    </div>
+
     <div class="catLayout">
       <aside class="catSidebar">
-        <div class="catSidebarTitle">Sous-catégories</div>
+        <div class="catSidebarTitle">Sous-cat&eacute;gories</div>
         <div class="subcatList" data-role="subcats"></div>
       </aside>
 
       <section class="catGridWrap">
         <div class="catGrid" data-role="grid"></div>
-        <div class="emptyState hidden" data-role="empty">Aucun résultat.</div>
+        <div class="emptyState hidden" data-role="empty">Aucun r&eacute;sultat.</div>
       </section>
     </div>
   `;
 
   const backBtn = el.querySelector('[data-role="back"]');
   const searchEl = el.querySelector('[data-role="search"]');
+  const searchWrapEl = el.querySelector('[data-role="search-wrap"]');
+  const searchToggleEl = el.querySelector('[data-role="search-toggle"]');
   const subcatsEl = el.querySelector('[data-role="subcats"]');
+  const subcatSelectEl = el.querySelector('[data-role="subcat-select"]');
   const gridEl = el.querySelector('[data-role="grid"]');
   const emptyEl = el.querySelector('[data-role="empty"]');
 
   backBtn.onclick = () => onBack?.();
 
+  function collapseMobileSearchOnSubcatChange() {
+    const isMobile = window.matchMedia("(max-width: 720px)").matches;
+    if (!isMobile || !searchWrapEl || !searchToggleEl || !searchEl) return;
+    q = "";
+    searchEl.value = "";
+    searchWrapEl.classList.remove("is-open");
+    searchToggleEl.setAttribute("aria-expanded", "false");
+    searchToggleEl.setAttribute("aria-label", "Ouvrir la recherche");
+    searchEl.blur();
+  }
+
   // ----------------------------
-  // Local state (DOIT être déclaré avant usage)
+  // Local state (DOIT Ãªtre dÃ©clarÃ© avant usage)
   // ----------------------------
   let activeSubcat = "__ALL__";
   let q = "";
 
   // ----------------------------
-  // Sous-catégories (comptées en séries uniques)
+  // Sous-catÃ©gories (comptÃ©es en sÃ©ries uniques)
   // ----------------------------
   const order = [];
   const counts = new Map();
@@ -62,7 +97,7 @@ export function renderSeries(el, { setStatus, onBack, onOpenShow }) {
     counts.set(k, (counts.get(k) || 0) + 1);
   }
 
-  // ✅ Default subcat: "récemment ajouté" (après remplissage order)
+  // âœ… Default subcat: "rÃ©cemment ajoutÃ©" (aprÃ¨s remplissage order)
   const def = pickDefaultRecentSubcat(order);
   if (def && def !== "__ALL__") activeSubcat = def;
 
@@ -77,6 +112,14 @@ export function renderSeries(el, { setStatus, onBack, onOpenShow }) {
     `;
   }
 
+  function applySubcat(key) {
+    activeSubcat = key === "TOUT" ? "__ALL__" : key;
+    renderSubcats();
+    collapseMobileSearchOnSubcatChange();
+    gridEl.scrollTop = 0;
+    renderGrid();
+  }
+
   function renderSubcats() {
     const rows = [];
     rows.push(subBtn("TOUT", shows.length, activeSubcat === "__ALL__"));
@@ -89,17 +132,28 @@ export function renderSeries(el, { setStatus, onBack, onOpenShow }) {
 
     subcatsEl.querySelectorAll(".subcatBtn").forEach((btn) => {
       btn.onclick = () => {
-        const key = btn.dataset.k;
-        activeSubcat = key === "TOUT" ? "__ALL__" : key;
-
-        // ✅ surbrillance correcte
-        renderSubcats();
-
-        // ✅ reset + reload
-        gridEl.scrollTop = 0;
-        renderGrid();
+        applySubcat(btn.dataset.k);
       };
     });
+
+    if (subcatSelectEl) {
+      const options = [
+        `<option value="__ALL__"${
+          activeSubcat === "__ALL__" ? " selected" : ""
+        }>TOUT (${shows.length})</option>`,
+      ];
+
+      for (const k of order) {
+        options.push(
+          `<option value="${escapeHtml(k)}"${
+            activeSubcat === k ? " selected" : ""
+          }>${escapeHtml(k)} (${counts.get(k) || 0})</option>`
+        );
+      }
+
+      subcatSelectEl.innerHTML = options.join("");
+      subcatSelectEl.value = activeSubcat;
+    }
   }
 
   function showCard(sh) {
@@ -108,8 +162,8 @@ export function renderSeries(el, { setStatus, onBack, onOpenShow }) {
       `${sh.totalEpisodes} épisode${sh.totalEpisodes > 1 ? "s" : ""}`;
 
     const cachedPoster = state.posterByShowKey[sh.showKey];
-const fallback = sh.logo || "";
-const initial = cachedPoster || fallback;
+    const fallback = sh.logo || "";
+    const initial = cachedPoster || fallback;
 
     return `
   <div class="mediaCard" data-showkey="${escapeHtml(sh.showKey)}">
@@ -121,7 +175,7 @@ const initial = cachedPoster || fallback;
            decoding="async"
            style="${initial ? "display:block;" : "display:none;"}"
            ${initial ? `src="${escapeHtml(initial)}"` : ""}>
-      <div class="posterFallback">🎬</div>
+      <div class="posterFallback">&#127916;</div>
     </div>
     <div class="mediaTitle">${escapeHtml(sh.showName)}</div>
     <div class="muted small">${escapeHtml(meta)}</div>
@@ -146,7 +200,7 @@ const initial = cachedPoster || fallback;
         // stop observing; hydrate will mark done
         visible.forEach((img) => io.unobserve(img));
 
-        // ✅ hydrate 30 posters max (pour la sous-cat courante)
+        // âœ… hydrate 30 posters max (pour la sous-cat courante)
         hydrateSeriesPosters(gridEl, { batch: 30 });
       },
       {
@@ -176,7 +230,7 @@ const initial = cachedPoster || fallback;
         const key = card.dataset.showkey;
         const sh = currentList.find((s) => s.showKey === key);
         if (!sh) {
-          console.warn("❌ show not found for key:", key);
+          console.warn("âŒ show not found for key:", key);
           return;
         }
         onOpenShow?.(sh);
@@ -205,7 +259,7 @@ const initial = cachedPoster || fallback;
       list = list.filter((sh) => (sh.showName || "").toLowerCase().includes(qq));
     }
 
-    // ordre playlist conservé par buildShows (minIdx) + safety
+    // ordre playlist conservÃ© par buildShows (minIdx) + safety
     list = [...list].sort((a, b) => (a.minIdx ?? 0) - (b.minIdx ?? 0));
     return list;
   }
@@ -264,6 +318,53 @@ const initial = cachedPoster || fallback;
     gridEl.scrollTop = 0;
     renderGrid();
   });
+
+  if (subcatSelectEl) {
+    const closeSelect = () => subcatSelectEl.setAttribute("size", "1");
+    const openSelect = () => {
+      if (!window.matchMedia("(max-width: 720px)").matches) return;
+      subcatSelectEl.setAttribute("size", "8");
+    };
+
+    subcatSelectEl.addEventListener("focus", openSelect);
+    subcatSelectEl.addEventListener("click", openSelect);
+    subcatSelectEl.addEventListener("blur", closeSelect);
+
+    subcatSelectEl.addEventListener("change", (e) => {
+      applySubcat(e.target.value || "__ALL__");
+      closeSelect();
+      subcatSelectEl.blur();
+    });
+  }
+
+  if (searchWrapEl && searchToggleEl && searchEl) {
+    const setSearchOpen = (open) => {
+      const keepOpen = q.length > 0;
+      const isOpen = open || keepOpen;
+      searchWrapEl.classList.toggle("is-open", isOpen);
+      searchToggleEl.setAttribute("aria-expanded", String(isOpen));
+      searchToggleEl.setAttribute(
+        "aria-label",
+        isOpen ? "Fermer la recherche" : "Ouvrir la recherche"
+      );
+      if (isOpen) searchEl.focus();
+    };
+
+    searchToggleEl.addEventListener("click", () => {
+      setSearchOpen(!searchWrapEl.classList.contains("is-open"));
+    });
+
+    searchEl.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !q) {
+        setSearchOpen(false);
+        searchEl.blur();
+      }
+    });
+
+    searchEl.addEventListener("blur", () => {
+      if (!q) setSearchOpen(false);
+    });
+  }
 
   renderSubcats();
   renderGrid();

@@ -14,6 +14,23 @@
 .catHeaderLeft{ display:flex; align-items:center; gap: 12px; }
 .catTitle{ font-weight:950; letter-spacing:.4px; font-size:18px; color: var(--accent); }
 .catHeaderRight{ display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+.catSearchWrap{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.catSearchToggle{
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: #0b0d10;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
 .catSearch{
   width: min(420px, 65vw);
   padding: 10px 12px;
@@ -178,6 +195,10 @@
   font-weight: 800;
   outline: none;
 }
+.subcatSelect[size]:not([size="1"]){
+  max-height: 22rem;
+  overflow-y: auto;
+}
 
 @media (max-width: 900px){
   .catHeader{ padding: 10px 12px; height:auto; }
@@ -192,6 +213,37 @@
   .poster{ border-radius: 14px; }
 }
 @media (max-width: 720px){
+  .catHeaderRight{
+    width: auto;
+    margin-left: auto;
+  }
+  .catSearchWrap{
+    gap: 0;
+  }
+  .catSearchToggle{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .catSearchWrap .catSearch{
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-width: 0;
+    margin-left: 0;
+    pointer-events: none;
+    transition: width .2s ease, opacity .2s ease, margin .2s ease, border-width .2s ease, padding .2s ease;
+  }
+  .catSearchWrap.is-open .catSearch{
+    width: min(62vw, 280px);
+    opacity: 1;
+    margin-left: 8px;
+    padding: 10px 12px;
+    border-width: 1px;
+    pointer-events: auto;
+  }
   .mobileSubcatBar{ display:block; }
   .catSidebar{ display:none !important; }
   .catLayout{ grid-template-columns: 1fr !important; gap: 10px !important; }
